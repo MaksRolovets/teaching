@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Расписание</title>
+
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, Arial;
+    background: #f2f2f7;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: auto;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: #fff;
+    border-radius: 16px;
+    padding: 6px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .tab.active {
+    background: #007aff;
+    color: #fff;
+  }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+
+  /* Inputs */
+  .inputs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+  }
+
+  input {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    font-size: 15px;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  button {
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #007aff;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  /* DAILY LESSON LIST */
+  .lesson {
+    background: #f8f9fa;
+    border-radius: 14px;
+    padding: 12px 15px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .right { opacity: 0.6; }
+
+  /* WEEK GRID */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .week-day {
+    background: #eee;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .week-cell {
+    background: #fafafa;
+    min-height: 80px;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .week-cell:hover { background: #e9eefc; }
+
+  .week-lesson {
+    background: #d5e2ff;
+    border-radius: 4px;
+    padding: 4px;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+
+  /* MONTH VIEW */
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .month-day {
+    background: #f9f9fb;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .month-day:hover {
+    background: #e9eefc;
+  }
+
+  .active-day {
+    background: #cdd9ff !important;
+  }
+
+  /* Mobile */
+  @media (max-width: 600px) {
+    .week-grid,
+    .month-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" data-tab="day">День</div>
+    <div class="tab" data-tab="week">Неделя</div>
+    <div class="tab" data-tab="month">Месяц</div>
+  </div>
+
+  <!-- DAY VIEW -->
+  <div id="day" class="card">
+    <h2>Дневное расписание</h2>
+
+    <div class="inputs">
+      <input id="day-student" placeholder="Ученик">
+      <input id="day-date" type="date">
+      <input id="day-time" type="time">
+      <button id="day-add">Добавить</button>
+    </div>
+
+    <div id="day-list"></div>
+  </div>
+
+  <!-- WEEK VIEW -->
+  <div id="week" class="card" style="display:none;">
+    <h2>Неделя</h2>
+
+    <div class="week-grid">
+      <div class="week-day">Пн</div>
+      <div class="week-day">Вт</div>
+      <div class="week-day">Ср</div>
+      <div class="week-day">Чт</div>
+      <div class="week-day">Пт</div>
+      <div class="week-day">Сб</div>
+      <div class="week-day">Вс</div>
+    </div>
+
+    <div id="week-cells" class="week-grid"></div>
+  </div>
+
+  <!-- MONTH VIEW -->
+  <div id="month" class="card" style="display:none;">
+    <h2>Календарь</h2>
+
+    <div id="month-grid" class="month-grid"></div>
+
+    <div class="inputs" style="margin-top:20px;">
+      <input id="month-student" placeholder="Ученик">
+      <input id="month-time" type="time">
+      <button id="month-add">Добавить</button>
+    </div>
+
+    <div id="month-lessons"></div>
+  </div>
+
+</div>
+
+<script>
+// ===================
+// TAB SWITCHING
+// ===================
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    document.querySelectorAll(".card").forEach(c => c.style.display="none");
+    document.getElementById(tab.dataset.tab).style.display = "block";
+  };
+});
+
+// ===================
+// DAY LOGIC
+// ===================
+document.getElementById("day-add").onclick = () => {
+  const s = day-student.value.trim();
+  const d = day-date.value;
+  const t = day-time.value;
+
+  if (!s || !d || !t) return alert("Заполните все поля");
+
+  const div = document.createElement("div");
+  div.className = "lesson";
+  div.innerHTML = `<span>${s}</span><span class="right">${d} • ${t}</span>`;
+  day-list.appendChild(div);
+};
+
+// ===================
+// WEEK LOGIC
+// ===================
+const weekCells = document.getElementById("week-cells");
+const weekLessons = [[],[],[],[],[],[],[]];
+
+for (let i=0;i<7;i++){
+  const c = document.createElement("div");
+  c.className="week-cell";
+  c.onclick = () => {
+    const student = prompt("Ученик:");
+    const time = prompt("Время:");
+    if (!student || !time) return;
+    weekLessons[i].push({student,time});
+    renderWeek();
+  };
+  weekCells.appendChild(c);
+}
+
+function renderWeek(){
+  [...weekCells.children].forEach((cell,i)=>{
+    cell.innerHTML="";
+    weekLessons[i].forEach(l=>{
+      const div=document.createElement("div");
+      div.className="week-lesson";
+      div.textContent=`${l.time} — ${l.student}`;
+      cell.appendChild(div);
+    });
+  });
+}
+
+renderWeek();
+
+// ===================
+// MONTH LOGIC
+// ===================
+let selectedDay = null;
+const monthGrid = document.getElementById("month-grid");
+const monthLessons = {};
+
+for (let i=1;i<=30;i++){
+  const div=document.createElement("div");
+  div.className="month-day";
+  div.textContent=i;
+
+  div.onclick=()=>{
+    document.querySelectorAll(".month-day").forEach(d=>d.classList.remove("active-day"));
+    div.classList.add("active-day");
+    selectedDay=i;
+    renderMonth();
+  };
+
+  monthGrid.appendChild(div);
+}
+
+document.getElementById("month-add").onclick=()=>{
+  if (!selectedDay) return alert("Выберите день!");
+  const student=month-student.value.trim();
+  const time=month-time.value;
+  if (!student||!time) return alert("Заполните поля");
+
+  if (!monthLessons[selectedDay]) monthLessons[selectedDay]=[];
+  monthLessons[selectedDay].push({student,time});
+  renderMonth();
+};
+
+function renderMonth(){
+  const list=document.getElementById("month-lessons");
+  list.innerHTML="";
+  if (!monthLessons[selectedDay]) return;
+
+  monthLessons[selectedDay].forEach(l=>{
+    const div=document.createElement("div");
+    div.className="lesson";
+    div.textContent=`${l.time} — ${l.student}`;
+    list.appendChild(div);
+  });
+}
+
+</script>
+
+</body>
+</html>

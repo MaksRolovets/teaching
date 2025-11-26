@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Расписание</title>
+<style>
+  body { font-family: Arial; background:#f3f4f7; margin:0; padding:20px; }
+  .wrap { max-width: 800px; margin:auto; background:#fff; padding:20px; border-radius:10px; }
+  h2 { margin-top:0; }
+  .row { display:flex; gap:10px; margin-bottom:10px; }
+  input, select, button {
+    padding:8px; border-radius:6px; border:1px solid #ccc; font-size:14px;
+  }
+  button { background:#2975d1; color:white; border:none; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; margin-top:15px; }
+  th, td { padding:10px; border-bottom:1px solid #eee; }
+  th { background:#fafafa; text-align:left; color:#555; }
+  .empty { color:#777; text-align:center; padding:20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>Мини-расписание</h2>
+
+  <!-- Добавление -->
+  <div class="row">
+    <input id="student" placeholder="Ученик" style="flex:1;">
+    <input id="date" type="date">
+    <input id="time" type="time">
+    <button id="add">Добавить</button>
+  </div>
+
+  <!-- Таблица -->
+  <table>
+    <thead>
+      <tr>
+        <th>Ученик</th>
+        <th>Дата</th>
+        <th>Время</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="list"></tbody>
+  </table>
+
+  <div id="empty" class="empty">Пока нет занятий</div>
+</div>
+
+<script>
+  const list = document.getElementById("list");
+  const empty = document.getElementById("empty");
+
+  function render() {
+    empty.style.display = list.children.length ? "none" : "block";
+  }
+
+  document.getElementById("add").onclick = () => {
+    const student = document.getElementById("student").value.trim();
+    const date = document.getElementById("date").value;
+    const time = document.getElementById("time").value;
+
+    if (!student || !date || !time) return alert("Заполните все поля");
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${student}</td>
+      <td>${date}</td>
+      <td>${time}</td>
+      <td><button onclick="this.closest('tr').remove(); render()">×</button></td>
+    `;
+    list.appendChild(tr);
+    render();
+  };
+
+  render();
+</script>
+</body>
+</html>

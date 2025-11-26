@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Календарное расписание</title>
+<style>
+  body { font-family: Arial; background:#f4f5f8; padding:20px; }
+  .calendar { 
+    max-width: 600px; margin:auto; background:#fff; padding:20px; 
+    border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);
+  }
+  h2 { margin-top:0; }
+  .grid { 
+    display:grid; grid-template-columns:repeat(7,1fr); 
+    gap:6px; margin-top:10px;
+  }
+  .day {
+    padding:12px; background:#f9f9fb; border-radius:8px; 
+    text-align:center; cursor:pointer;
+  }
+  .day:hover { background:#e9eefc; }
+  .active { background:#cdd9ff !important; }
+  .lessons { margin-top:15px; }
+  .lesson { 
+    padding:10px; background:#f6f6f9; border-radius:8px; 
+    margin-bottom:8px; border-left:4px solid #3c6ae5;
+  }
+  .row { display:flex; gap:10px; margin-top:10px; }
+  input, button {
+    padding:8px; border-radius:6px; border:1px solid #ddd;
+  }
+  button { background:#3c6ae5; color:#fff; border:none; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="calendar">
+  <h2>Расписание</h2>
+
+  <div id="days" class="grid"></div>
+
+  <div class="row">
+    <input id="student" placeholder="Ученик" style="flex:1;">
+    <input id="time" type="time">
+    <button id="add">Добавить</button>
+  </div>
+
+  <div id="lessonList" class="lessons"></div>
+</div>
+
+<script>
+  const daysEl = document.getElementById("days");
+  const lessonList = document.getElementById("lessonList");
+  let selectedDay = null;
+  const lessons = {};
+
+  // генерация 30 дней
+  for (let i = 1; i <= 30; i++) {
+    const div = document.createElement("div");
+    div.className = "day";
+    div.textContent = i;
+
+    div.onclick = () => {
+      document.querySelectorAll(".day").forEach(d=>d.classList.remove("active"));
+      div.classList.add("active");
+      selectedDay = i;
+      renderLessons();
+    };
+
+    daysEl.appendChild(div);
+  }
+
+  document.getElementById("add").onclick = () => {
+    if (!selectedDay) return alert("Выберите дату!");
+
+    const student = document.getElementById("student").value.trim();
+    const time = document.getElementById("time").value;
+
+    if (!student || !time) return alert("Введите данные!");
+
+    if (!lessons[selectedDay]) lessons[selectedDay] = [];
+    lessons[selectedDay].push({ student, time });
+
+    renderLessons();
+  };
+
+  function renderLessons() {
+    lessonList.innerHTML = "";
+    if (!lessons[selectedDay]) return;
+
+    lessons[selectedDay].forEach(l => {
+      const div = document.createElement("div");
+      div.className = "lesson";
+      div.textContent = l.time + " — " + l.student;
+      lessonList.appendChild(div);
+    });
+  }
+</script>
+
+</body>
+</html>

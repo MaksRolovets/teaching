@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>iOS Schedule</title>
+
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, Arial;
+    padding:30px;
+    background:#f2f2f7;
+  }
+
+  .card {
+    background:#fff;
+    border-radius:20px;
+    padding:20px;
+    max-width:750px;
+    margin:auto;
+    box-shadow:0 4px 20px rgba(0,0,0,0.05);
+  }
+
+  h2 { margin-top:0; font-size:24px; }
+
+  .inputs { display:flex; gap:10px; margin-bottom:15px; }
+  input {
+    padding:12px;
+    border-radius:12px;
+    border:1px solid #ddd;
+    flex:1;
+    font-size:15px;
+  }
+
+  button {
+    padding:12px 20px;
+    border-radius:12px;
+    background:#007aff;
+    color:white;
+    border:none;
+    font-size:15px;
+    cursor:pointer;
+  }
+
+  .lesson {
+    background:#f8f9fa;
+    border-radius:14px;
+    padding:12px 15px;
+    margin-top:10px;
+    font-size:15px;
+    display:flex;
+    justify-content:space-between;
+  }
+
+  .right { opacity:0.6; }
+</style>
+
+</head>
+<body>
+
+<div class="card">
+  <h2>Расписание</h2>
+
+  <div class="inputs">
+    <input id="student" placeholder="Ученик">
+    <input id="date" type="date">
+    <input id="time" type="time">
+    <button id="add">Добавить</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+  const list = document.getElementById("list");
+
+  add.onclick = () => {
+    const s = student.value.trim();
+    const d = date.value;
+    const t = time.value;
+
+    if(!s||!d||!t) return alert("Заполните все поля");
+
+    const div = document.createElement("div");
+    div.className = "lesson";
+    div.innerHTML = `<span>${s}</span><span class="right">${d} • ${t}</span>`;
+    list.appendChild(div);
+  };
+</script>
+
+</body>
+</html>
