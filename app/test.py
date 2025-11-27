@@ -30,8 +30,11 @@ class StudentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class LessonCreate(BaseModel):
-    pass
-
+    student_id : int
+    notes:Optional[str]
+    date:datetime.date
+    begin : datetime.datetime
+    end : datetime.datetime
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
@@ -51,13 +54,12 @@ class LessonPlan(Base):
     __tablename__ = "lesson_plans"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    bio: Mapped[str | None] = mapped_column(String(255))
     student_id : Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"))
-    topic : Mapped[str] = mapped_column(nullable=False)
-    subtopic : Mapped[str]
     notes : Mapped[str]
     date: Mapped[datetime.date] = mapped_column(Date)
     begin : Mapped[datetime.datetime]
+    end : Mapped[datetime.datetime]
+
     student = relationship("Student", back_populates="lesson_plans")
 
 async def create_table():
@@ -83,9 +85,12 @@ async def select_student(user_id : int):
         result = await sessions.scalars(select(Student).where(Student.id == user_id))
         user = StudentResponse.model_validate(result.one()).model_dump()
         return user
-    
-if __name__ == "__main__":
-    asyncio.run(create_table())
+
+async def create_lesson(data: LessonCreate):
+    async with async_session_maker() as sessions:
+        sessions.add(LessonPlan(**data.model_dump()))
+        await sessions.commit()
+        return {"message":f"Занятие добавлено"}
 
 
 

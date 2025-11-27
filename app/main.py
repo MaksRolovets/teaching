@@ -20,7 +20,7 @@ templates = Jinja2Templates(directory="app/templates")
 app.include_router(api_router)
 @app.get("/", response_class=HTMLResponse)
 async def home(req: Request):
-    return templates.TemplateResponse("index.html", {"request":req})
+    return templates.TemplateResponse("2.html", {"request":req})
                
                
                

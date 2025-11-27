@@ -326,6 +326,25 @@
     display: none;
 }
 
+.floating-add-btn {
+    position: fixed;
+    bottom: 90px;
+    right: 25px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #007aff;
+    color: white;
+    font-size: 32px;
+    line-height: 60px;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 9999; /* важно! */
+}
+
+
 .schedule-view.active {
     display: block;
 }
@@ -394,6 +413,94 @@
     }
 }
 
+.bottom-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 70%; /* фиксированная высота */
+    background: #fff;
+    border-radius: 18px 18px 0 0;
+    transform: translateY(100%); /* прячем вниз */
+    transition: transform 0.25s ease-in-out; /* быстро и плавно */
+    padding: 26px 22px 34px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: calc(34px + env(safe-area-inset-bottom));
+    z-index: 9999;
+    /* overflow-y: auto; если контента много */
+}  
+
+
+.bottom-sheet.open {
+    transform: translateY(0);
+}
+
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    z-index: 900;
+    transition: opacity 0.25s;
+}
+
+.overlay.show {
+    display: block;
+    opacity: 1;
+}
+
+.sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.sheet-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.sheet-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.sheet-content label {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.sheet-content input,
+.sheet-content textarea {
+    margin-top: 4px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    width: 100%;
+}
+
+.sheet-save-btn {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    background: #007aff;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+}
+.sheet-save-btn:active {
+    transform: scale(0.98);
+}
 
 
 </style>
@@ -575,339 +682,604 @@
             <div class="nav-icon">📈</div>
             <div class="nav-label">Отчеты</div>
         </a>
-        <button id="schedule-add-btn" class="schedule-add-btn">+</button>
+        <!-- <button id="schedule-add-btn" class="schedule-add-btn">+</button> -->
+         
     </nav>
-    
+    <div id="overlay" class="overlay"></div>
+    <div id="create-student-modal" class="bottom-sheet">
+    <div class="sheet-header">
+        <div class="sheet-title">Новый ученик</div>
+        <button class="sheet-close">✖</button>
+    </div>
+
+    <div class="sheet-content">
+        <label class="sheet-field">
+            <span>Имя ученика</span>
+            <input type="text" id="student-name-input" placeholder="Введите имя">
+        </label>
+
+        <label class="sheet-field">
+            <span>Возраст</span>
+            <input type="number" id="student-age-input" placeholder="Например: 12">
+        </label>
+
+        <label class="sheet-field">
+            <span>Телефон</span>
+            <input type="text" id="student-phone-input" placeholder="+7 (___) ___-__-__">
+        </label>
+
+        <label class="sheet-field">
+            <span>Описание</span>
+            <textarea id="student-info-input" placeholder="Комментарий"></textarea>
+        </label>
+
+        <button id="create-student-btn" class="sheet-save-btn">
+            Создать ученика
+        </button>
+    </div>
+</div><div id="create-lesson-modal" class="bottom-sheet">
+    <div class="sheet-header">
+        <div class="sheet-title">Новое занятие</div>
+        <button class="sheet-close">✖</button>
+    </div>
+
+    <div class="sheet-content">
+        <label>
+            <span>Дата</span>
+            <input type="date" id="lesson-date-input">
+        </label>
+
+        <label>
+            <span>Время начала</span>
+            <input type="time" id="lesson-start-input">
+        </label>
+
+        <label>
+            <span>Время конца</span>
+            <input type="time" id="lesson-end-input">
+        </label>
+
+        <label>
+            <span>Ученик</span>
+            <input type="text" id="lesson-student-input" placeholder="Имя ученика">
+        </label>
+
+        <label>
+            <span>Комментарий</span>
+            <textarea id="lesson-info-input" placeholder="Описание / комментарий"></textarea>
+        </label>
+
+        <button id="create-lesson-btn" class="sheet-save-btn">
+            Создать занятие
+        </button>
+    </div>
+</div>
+
+
+
     <script>
-        // const API = "http://192.168.0.108:8000";
-        const API = "http://172.20.10.2:8000";
+    const API = "http://192.168.0.108:8000";
+    // const API = "http://172.20.10.2:8000";
+    // const API = "http://127.0.0.1:8000";
 
-        let sidebarWasOpen = false;
+    let sidebarWasOpen = false;
 
-        // Логика навигации
-        class Navigation {
-            constructor() {
-                this.currentPage = 'dashboard';
-                this.init();
-            }
-            
-            init() {
-                // Обработчики для десктопного меню
-                const desktopLinks = document.querySelectorAll('.desktop-nav .nav-link');
-                desktopLinks.forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.navigateTo(link.dataset.page);
-                    });
-                });
-                
-                // Обработчики для мобильного меню
-                const mobileLinks = document.querySelectorAll('.mobile-nav-item');
-                mobileLinks.forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.navigateTo(link.dataset.page);
-                    });
-                });
-                
-                // Обработка изменения размера окна
-                window.addEventListener('resize', this.handleResize.bind(this));
-            }
-            
-            navigateTo(pageId) {
-                // Скрываем текущую страницу
-                const currentPage = document.getElementById(this.currentPage);
-                if (currentPage) {
-                    currentPage.classList.remove('active');
-                }
-                
-                // Убираем активный класс у всех ссылок
-                document.querySelectorAll('.nav-link.active, .mobile-nav-item.active').forEach(item => {
-                    item.classList.remove('active');
-                });
-
-                 const scheduleBtn = document.getElementById('schedule-add-btn');
-                if (scheduleBtn) {
-                    if (pageId === 'schedule') {
-                        setTimeout(() => {
-                            scheduleBtn.style.display = 'block';
-                        }, 10);
-                    } else {
-                        scheduleBtn.style.display = 'none';
-                    }
-                }
-                
-                // Показываем новую страницу
-                const newPage = document.getElementById(pageId);
-                if (newPage) {
-                    newPage.classList.add('active');
-                    this.currentPage = pageId;
-                    
-                    if (pageId !== "students") {
-                        document.getElementById("student-sidebar").classList.remove("open");
-                    } else {
-                        if (sidebarWasOpen) {
-                            document.getElementById("student-sidebar").classList.add("open");
-                        }
-                    }
-                    
-                    // Обновляем активные ссылки
-                    document.querySelectorAll(`[data-page="${pageId}"]`).forEach(link => {
-                        link.classList.add('active');
-                    });
-                    
-                    // Прокручиваем к верху на мобильных
-                    if (window.innerWidth < 768) {
-                        window.scrollTo(0, 0);
-                    }
-                }
-            }
-            
-            handleResize() {
-                // Можно добавить дополнительную логику при изменении размера
-                console.log('Размер окна изменен:', window.innerWidth);
-            }
+    // Логика навигации (без изменений)
+   class Navigation {
+    constructor() {
+        this.currentPage = 'dashboard';
+        this.init();
+    }
+    
+    init() {
+        // Обработчики для десктопного меню
+        const desktopLinks = document.querySelectorAll('.desktop-nav .nav-link');
+        desktopLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigateTo(link.dataset.page);
+            });
+        });
+        
+        // Обработчики для мобильного меню
+        const mobileLinks = document.querySelectorAll('.mobile-nav-item');
+        mobileLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigateTo(link.dataset.page);
+            });
+        });
+        
+        // Обработка изменения размера окна
+        window.addEventListener('resize', this.handleResize.bind(this));
+    }
+    
+    navigateTo(pageId) {
+        // Скрываем текущую страницу
+        const currentPage = document.getElementById(this.currentPage);
+        if (currentPage) {
+            currentPage.classList.remove('active');
         }
         
-        // Инициализация навигации
-        const navigation = new Navigation();
-        
-        // ===== Хранилище данных =====
-        let appData = {
-            dashboard: null,
-            students: [],
-            schedule: []
-        };
-        
-        // ===== Универсальная загрузка данных =====
-        async function loadData() {
-            try {
-                const [dashboardRes, studentsRes, scheduleRes] = await Promise.all([
-                    fetch('/api/dashboard'),
-                    fetch(API +  '/students/stud'),
-                    fetch(API + '/lessons')
-                ]);
-                
-                
-                appData.dashboard = await dashboardRes.json();
-        appData.students = await studentsRes.json();
-        appData.schedule = await scheduleRes.json();
-
-        // После загрузки обновляем UI
-        // renderDashboard();
-        renderStudents();
-        // renderSchedule();
-
-    } catch (e) {
-        console.error("Ошибка загрузки данных:", e);
-    }
-}
-
-// ===== Рендер дашборда =====
-async function loadDashboardData() {
-    try {
-        const response = await fetch(API +  '/students/info');
-    //     if (response.status === 0||!response.ok ||response.status === 404 || !data || Object.keys(data).length === 0) {
-    //     response = await fetch(`${API}/students/info`);
-    // }
-        const data = await response.json(); 
-
-        // Обновляем статистику
-        const stats = document.querySelectorAll('#dashboard .stat-card .stat-value');
-        stats[0].textContent = data.studentsCount;
-        stats[1].textContent = data.lessonsCount;
-        stats[2].textContent = data.attendance + '%';
-        stats[3].textContent = data.revenue + ' ₽';
-
-        // Обновляем последнюю активность
-        const activityBlock = document.querySelector('#dashboard .section');
-        activityBlock.innerHTML = `
-            <h2 style="margin-bottom: 15px;">Последняя активность</h2>
-            ${data.activity.map(a => `<p>${a}</p>`).join('')}
-        `;
-
-    } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-    }
-}
-
-async function loadSchedule() {
-    try {
-        const res = await fetch(API +  "/lessons");
-        const schedule = await res.json();
-
-        appData.schedule = schedule;
-        renderScheduleList();
-    } catch (e) {
-        console.error("Ошибка загрузки расписания:", e);
-    }
-}
-
-
-// ===== Рендер учеников =====
-function renderStudents() {
-    const container = document.getElementById('students-list');
-    if (!container) return;
-
-    container.innerHTML = appData.students
-        .map((s, i) => `
-            <div class="student-card" data-id="${s.id}">
-                <div class="student-index">${i + 1}</div>
-                <div class="student-name">${s.name}</div>
-            </div>
-        `)
-        .join('');
-
-    document.querySelectorAll('.student-card').forEach(card => {
-        card.addEventListener('click', () => {
-            openStudentSidebar(card.dataset.id);
+        // Убираем активный класс у всех ссылок
+        document.querySelectorAll('.nav-link.active, .mobile-nav-item.active').forEach(item => {
+            item.classList.remove('active');
         });
-    });
+
+        // ВСЕГДА удаляем кнопку "+" перед проверкой (ВМЕСТО: раньше удаляли только если не students/schedule)
+        removeFloatingAddButton();
+
+        // Закрываем любую открытую модалку (ДОБАВЛЕНО: на случай, если модалка осталась открытой)
+        const openModalEl = document.querySelector('.bottom-sheet.open');
+        if (openModalEl) {
+            closeModal(openModalEl.id);
+        }
+
+        // Создаём кнопку только если нужно (без проверки на существование — она уже удалена)
+        if (["schedule", "students"].includes(pageId)) {
+            createFloatingAddButton(pageId);
+        }
+
+        // Показываем новую страницу
+        const newPage = document.getElementById(pageId);
+        if (newPage) {
+            newPage.classList.add('active');
+            this.currentPage = pageId;
+            
+            if (pageId !== "students") {
+                document.getElementById("student-sidebar").classList.remove("open");
+            } else {
+                if (sidebarWasOpen) {
+                    document.getElementById("student-sidebar").classList.add("open");
+                }
+            }
+            
+            // Обновляем активные ссылки
+            document.querySelectorAll(`[data-page="${pageId}"]`).forEach(link => {
+                link.classList.add('active');
+            });
+            
+            // Прокручиваем к верху на мобильных
+            if (window.innerWidth < 768) {
+                window.scrollTo(0, 0);
+            }
+        }
+    }
+    
+    handleResize() {
+        console.log('Размер окна изменен:', window.innerWidth);
+    }
 }
+    
+    // Инициализация навигации
+    const navigation = new Navigation();
+    
+    // ===== Хранилище данных ===== (без изменений)
+    let appData = {
+        dashboard: null,
+        students: [],
+        schedule: []
+    };
+    
+    // ===== Универсальная загрузка данных ===== (без изменений)
+    async function loadData() {
+        try {
+            const [dashboardRes, studentsRes, scheduleRes] = await Promise.all([
+                fetch(API + '/dashboard'),  // Исправил: добавил API в URL (было '/api/dashboard' — это ошибка, если API = "http://...")
+                fetch(API + '/students/stud'),
+                fetch(API + '/lessons')
+            ]);
+            
+            
+            appData.dashboard = await dashboardRes.json();
+            appData.students = await studentsRes.json();
+            appData.schedule = await scheduleRes.json();
+
+            // После загрузки обновляем UI
+            // renderDashboard();  // Закомментировано в вашем коде, оставляю
+            renderStudents();
+            renderSchedule();
+
+        } catch (e) {
+            console.error("Ошибка загрузки данных:", e);
+        }
+    }
+
+    // ===== Рендер дашборда ===== (без изменений, но исправил fetch)
+    async function loadDashboardData() {
+        try {
+            const response = await fetch(API + '/students/info');
+            const data = await response.json(); 
+
+            // Обновляем статистику
+            const stats = document.querySelectorAll('#dashboard .stat-card .stat-value');
+            stats[0].textContent = data.studentsCount;
+            stats[1].textContent = data.lessonsCount;
+            stats[2].textContent = data.attendance + '%';
+            stats[3].textContent = data.revenue + ' ₽';
+
+            // Обновляем последнюю активность
+            const activityBlock = document.querySelector('#dashboard .section');
+            activityBlock.innerHTML = `
+                <h2 style="margin-bottom: 15px;">Последняя активность</h2>
+                ${data.activity.map(a => `<p>${a}</p>`).join('')}
+            `;
+
+        } catch (error) {
+            console.error('Ошибка загрузки данных:', error);
+        }
+    }
+
+    async function loadSchedule() {
+        try {
+            const res = await fetch(API + "/lessons");
+            const schedule = await res.json();
+
+            appData.schedule = schedule;
+            renderScheduleList();
+        } catch (e) {
+            console.error("Ошибка загрузки расписания:", e);
+        }
+    }
 
 
-
-// ===== Рендер расписания =====
-function renderSchedule() {
-    const container = document.querySelector('#schedule .section');
-    if (!container) return;
-
-    container.innerHTML = appData.schedule
-        .map(lesson => `<p>${lesson.date} — ${lesson.title}</p>`)
-        .join('');
-}
-
-function renderScheduleList() {
-    const container = document.getElementById("schedule-list-view");
-    if (!container) return;
-
-    container.innerHTML = `
-        <div class="schedule-date">Сегодня</div>
-        ${appData.schedule
-            .map(lesson => `
-                <div class="lesson-card">
-                    <div>
-                        <div class="lesson-time">${lesson.start} – ${lesson.end}</div>
-                        <div class="lesson-student">${lesson.student}</div>
-                    </div>
-                    <div class="lesson-menu">⋮</div>
-                </div>
-            `).join('')}
-    `;
-}
-
-
-async function loadStudentsData() {
-    try {
-        const response = await fetch(API +  '/students/stud');
-      
-        const students = await response.json();
-
+    // ===== Рендер учеников ===== (без изменений)
+    function renderStudents() {
         const container = document.getElementById('students-list');
-        container.innerHTML = ""; // очищаем
+        if (!container) return;
 
-        students.forEach(student => {
-            const card = document.createElement('p');
-            card.textContent = `${student.name} — ${student.age} лет`;
-            container.appendChild(card);
-        });
+        container.innerHTML = appData.students
+            .map((s, i) => `
+                <div class="student-card" data-id="${s.id}">
+                    <div class="student-index">${i + 1}</div>
+                    <div class="student-name">${s.name}</div>
+                </div>
+            `)
+            .join('');
 
-    } catch (error) {
-        console.error("Ошибка загрузки учеников:", error);
+            document.querySelectorAll('.student-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    openStudentSidebar(card.dataset.id);
+                });
+            });
+        }
+        
+    function createFloatingAddButton(pageId) {
+        // если уже существует — ничего не делаем
+        if (document.getElementById("floating-add-btn")) return;
+
+        const btn = document.createElement("button");
+        btn.id = "floating-add-btn";
+        btn.className = "floating-add-btn";
+        btn.textContent = "+";
+        btn.dataset.page = pageId;
+
+        // важное: повесим обработчик прямо на кнопку (не через делегат)
+        // используем pointerup — он надёжнее при тачах/свайпах
+        const openHandler = (ev) => {
+            // предотвратить дальнейшую обработку (на случай, если overlay ловит)
+            ev.stopPropagation();
+            ev.preventDefault();
+
+            if (btn.dataset.page === "students") {
+                openModal('create-student-modal');
+            } else if (btn.dataset.page === "schedule") {
+                openModal('create-lesson-modal');
+            }
+        };
+
+        btn.addEventListener('pointerup', openHandler);
+        // на всякий случай — также слушаем click (fallback)
+        btn.addEventListener('click', openHandler);
+
+        // чтобы элемент был сразу кликабельным и не "залипал"
+        btn.style.pointerEvents = "";
+
+        // сохраняем ссылку на handler чтобы можно было убрать при удалении
+        btn.__openHandler = openHandler;
+
+        document.body.appendChild(btn);
     }
-}
 
-async function openStudentSidebar(id) {
+    function removeFloatingAddButton() {
+        const btn = document.getElementById("floating-add-btn");
+        if (!btn) return;
+        // если повесили handler — удаляем
+        if (btn.__openHandler) {
+            btn.removeEventListener('pointerup', btn.__openHandler);
+            btn.removeEventListener('click', btn.__openHandler);
+            delete btn.__openHandler;
+        }
+        btn.remove();
+    }
+
+
+
+
+    // ===== Рендер расписания ===== (без изменений)
+    // function renderSchedule() {
+    //     const container = document.querySelector('#schedule .section');
+    //     if (!container) return;
+
+    //     container.innerHTML = appData.schedule
+    //         .map(lesson => `<p>${lesson.date} — ${lesson.title}</p>`)
+    //         .join('');
+    // }
+
+    function renderScheduleList() {
+        const container = document.getElementById("schedule-list-view");
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="schedule-date">Сегодня</div>
+            ${appData.schedule
+                .map(lesson => `
+                    <div class="lesson-card">
+                        <div>
+                            <div class="lesson-time">${lesson.start} – ${lesson.end}</div>
+                            <div class="lesson-student">${lesson.student}</div>
+                            </div>
+                            <div class="lesson-menu">⋮</div>
+                    </div>
+                `).join('')}
+        `;
+    }
+
+    function testScheduleRender() {
+        appData.schedule = [
+            { start: "10:00", end: "11:30", student: "Тестовый ученик 1" },
+            { start: "14:00", end: "15:30", student: "Тестовый ученик 2" },
+            { start: "16:00", end: "17:30", student: "Тестовый ученик 3" }
+        ];
+        renderScheduleList();
+        console.log("Тестовые данные установлены");
+    }
+
+
+    async function loadStudentsData() {
+        try {
+            const response = await fetch(API +  '/students/stud');
+          
+            const students = await response.json();
+
+            const container = document.getElementById('students-list');
+            container.innerHTML = ""; // очищаем
+
+            students.forEach(student => {
+                const card = document.createElement('p');
+                card.textContent = `${student.name} — ${student.age} лет`;
+                container.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error("Ошибка загрузки учеников:", error);
+        }
+    }
+
+    async function openStudentSidebar(id) {
+        const sidebar = document.getElementById("student-sidebar");
+
+        // Показываем панель
+        sidebar.classList.add("open");
+
+        try {
+            const response = await fetch(`${API}/students/${id}`);
+            const student = await response.json();
+
+            document.getElementById("sidebar-name").textContent = student.name;
+            document.getElementById("sidebar-age").textContent = `${student.age}`;
+            document.getElementById("sidebar-info").textContent = `${student.info ?? "нет данных"}`;
+            document.getElementById("sidebar-phone").textContent = student.phone ?? "нет данных";
+
+            document.getElementById("student-sidebar").classList.add("open");
+
+        } catch (err) {
+            console.error("Ошибка загрузки ученика", err);
+            document.getElementById("sidebar-info").textContent = "Ошибка загрузки.";
+        }
+        sidebarWasOpen = true;
+
+    }
+
+
+            // Загружаем данные при старте
+            loadDashboardData();
+            // loadStudentsData();
+            // loadSchedule()
+            loadData();
+             
+            
+            document.querySelector(".close-sidebar").addEventListener("click", () => {
+                document.getElementById("student-sidebar").classList.remove("open");
+                sidebarWasOpen = false;
+            });
+            
+        // ===== Закрытие сайдбара свайпом вправо ===== (без изменений)
+    let startX = 0;
+
     const sidebar = document.getElementById("student-sidebar");
 
-    // Показываем панель
-    sidebar.classList.add("open");
-
-    try {
-        const response = await fetch(`${API}/students/${id}`);
-        const student = await response.json();
-
-        document.getElementById("sidebar-name").textContent = student.name;
-        document.getElementById("sidebar-age").textContent = `${student.age}`;
-        document.getElementById("sidebar-info").textContent = `${student.info ?? "нет данных"}`;
-        document.getElementById("sidebar-phone").textContent = student.phone ?? "нет данных";
-
-        document.getElementById("student-sidebar").classList.add("open");
-
-    } catch (err) {
-        console.error("Ошибка загрузки ученика", err);
-        document.getElementById("sidebar-info").textContent = "Ошибка загрузки.";
-    }
-    sidebarWasOpen = true;
-
-}
-
-
-        // Загружаем данные при старте
-        loadDashboardData();
-        // loadStudentsData();
-        loadSchedule()
-        loadData();
-        
-        document.querySelector(".close-sidebar").addEventListener("click", () => {
-            document.getElementById("student-sidebar").classList.remove("open");
-            sidebarWasOpen = false;
-        });
-        
-    // ===== Закрытие сайдбара свайпом вправо =====
-let startX = 0;
-
-const sidebar = document.getElementById("student-sidebar");
-
-sidebar.addEventListener("touchstart", (e) => {
-    startX = e.touches[0].clientX;
-});
-
-sidebar.addEventListener("touchmove", (e) => {
-    const deltaX = e.touches[0].clientX - startX;
-
-    // Если тянем вправо — смещаем панель
-    if (deltaX > 0) {
-        sidebar.style.transform = `translateX(${deltaX}px)`;
-    }
-});
-
-sidebar.addEventListener("touchend", (e) => {
-    const deltaX = e.changedTouches[0].clientX - startX;
-
-    // Если смахнули вправо больше чем на 80px — закрываем
-    if (deltaX > 80) {
-        sidebar.classList.remove("open");
-    }
-
-    // Возвращаем на место
-    sidebar.style.transform = "";
-});
-
-// --------------------------------------
-// Переключение табов расписания
-document.querySelectorAll('.schedule-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const mode = tab.dataset.mode;
-
-        document.querySelectorAll('.schedule-tab')
-            .forEach(t => t.classList.remove('active'));
-
-        tab.classList.add('active');
-
-        document.querySelectorAll('.schedule-view')
-            .forEach(v => v.classList.remove('active'));
-
-        document.getElementById(`schedule-${mode}-view`).classList.add('active');
+    sidebar.addEventListener("touchstart", (e) => {
+        startX = e.touches[0].clientX;
     });
-});
 
-// Кнопка добавить
-document.getElementById("schedule-add-btn").addEventListener("click", () => {
-    alert("Окно создания урока будет позже 🔧");
-});
+    sidebar.addEventListener("touchmove", (e) => {
+        const deltaX = e.touches[0].clientX - startX;
 
+        // Если тянем вправо — смещаем панель
+        if (deltaX > 0) {
+            sidebar.style.transform = `translateX(${deltaX}px)`;
+        }
+    });
 
-    </script>
+    sidebar.addEventListener("touchend", (e) => {
+        const deltaX = e.changedTouches[0].clientX - startX;
+
+        // Если смахнули вправо больше чем на 80px — закрываем
+        if (deltaX > 80) {
+            sidebar.classList.remove("open");
+        }
+
+        // Возвращаем на место
+        sidebar.style.transform = "";
+    });
+
+    loadSchedule() // правильно вызываем расписание
+    // --------------------------------------
+    // Переключение табов расписания (без изменений)
+    document.querySelectorAll('.schedule-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const mode = tab.dataset.mode;
+
+            document.querySelectorAll('.schedule-tab')
+                .forEach(t => t.classList.remove('active'));
+
+            tab.classList.add('active');
+
+            document.querySelectorAll('.schedule-view')
+                .forEach(v => v.classList.remove('active'));
+
+            document.getElementById(`schedule-${mode}-view`).classList.add('active');
+        });
+    });
+
+    // НОВАЯ ЛОГИКА МОДАЛОК: УНИФИЦИРОВАННАЯ (ВМЕСТО ВСЕХ ВАШИХ ОТДЕЛЬНЫХ ФУНКЦИЙ openCreateStudentModal, closeCreateStudentModal, openCreateLessonModal, closeCreateLessonModal, closeSheet)
+    // КУДА: Замените весь код модалок ниже на это. Удалите старые функции (они теперь не нужны).
+
+    const overlay = document.getElementById("overlay");
+
+    // Общая функция открытия модалки по ID
+    function openModal(modalId) {
+        const modalEl = document.getElementById(modalId);
+        if (!modalEl) return;
+        if (document.querySelector('.bottom-sheet.open')) return; // Предотвращаем открытие нескольких модалок
+
+        modalEl.classList.add("open");
+        overlay.classList.add("show");
+        document.body.style.overflow = "hidden";
+
+        // Скрыть плавающую кнопку
+        removeFloatingAddButton();
+
+        // Сброс transform
+        modalEl.style.transform = "translateY(0)";
+    }
+
+    // Общая функция закрытия модалки по ID
+    function closeModal(modalId) {
+        const modalEl = document.getElementById(modalId);
+        if (!modalEl) return;
+
+        modalEl.classList.remove("open");
+        overlay.classList.remove("show");
+        document.body.style.overflow = "";
+
+        modalEl.style.transform = "";
+
+        // Показать кнопку обратно (с задержкой для анимации)
+        setTimeout(() => {
+            if (["students", "schedule"].includes(navigation.currentPage)) {
+                createFloatingAddButton(navigation.currentPage);
+            }
+        }, 200);
+    }
+
+    // Функция для прикрепления swipe/drag handlers к любой модалке
+    function attachSwipeHandlers(modalEl) {
+        if (!modalEl) return;
+
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        const SWIPE_ACTIVATE = 10;   // сколько нужно "сдвинуть", чтобы считать жест свайпом
+        const SWIPE_CLOSE = 120;     // сколько нужно тянуть вниз, чтобы закрыть
+
+        // Touch (мобильный свайп)
+        modalEl.addEventListener("touchstart", (e) => {
+            isDragging = true;
+            startY = e.touches[0].clientY;
+            modalEl.style.transition = "none";
+        }, { passive: true });
+
+        modalEl.addEventListener("touchmove", (e) => {
+            if (!isDragging) return;
+            currentY = e.touches[0].clientY - startY;
+            if (currentY < 0 || currentY < SWIPE_ACTIVATE) return;
+            modalEl.style.transform = `translateY(${currentY}px)`;
+        }, { passive: true });
+
+        modalEl.addEventListener("touchend", () => {
+            if (!isDragging) return;
+            isDragging = false;
+            modalEl.style.transition = "0.25s ease";
+            if (currentY > SWIPE_CLOSE) {
+                closeModal(modalEl.id);  // Закрываем эту модалку
+            } else {
+                modalEl.style.transform = "translateY(0)";
+            }
+            currentY = 0;
+        }, { passive: true });
+
+        // Mouse (десктоп drag) — аналогично
+        let mouseDragging = false;
+        modalEl.addEventListener("mousedown", (e) => {
+            if (!modalEl.classList.contains("open")) return;
+            mouseDragging = true;
+            startY = e.clientY;
+            modalEl.style.transition = "none";
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!mouseDragging) return;
+            currentY = e.clientY;
+            const diff = currentY - startY;
+            if (diff > 0) modalEl.style.transform = `translateY(${Math.min(diff, modalEl.clientHeight * 0.9)}px)`;
+        });
+        window.addEventListener("mouseup", () => {
+            if (!mouseDragging) return;
+            mouseDragging = false;
+            modalEl.style.transition = "";
+            const diff = currentY - startY;
+            if (diff > 90) closeModal(modalEl.id);
+            else modalEl.style.transform = "";
+        });
+    }
+
+    // Применяем swipe/drag к обеим модалкам (КУДА: Вызываем после загрузки DOM)
+    attachSwipeHandlers(document.getElementById("create-student-modal"));
+    attachSwipeHandlers(document.getElementById("create-lesson-modal"));
+
+    // Крестик закрытия для обеих модалок
+    document.querySelectorAll('.sheet-close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', (e) => {
+            const modalEl = e.target.closest('.bottom-sheet');
+            if (modalEl) closeModal(modalEl.id);
+        });
+    });
+
+    // Overlay: закрывает активную модалку (ВМЕСТО вашего overlay.addEventListener("click", closeSheet))
+    overlay.addEventListener("click", () => {
+        const openModalEl = document.querySelector('.bottom-sheet.open');
+        if (openModalEl) closeModal(openModalEl.id);
+    });
+
+    // Обработчик для плавающей кнопки (ВМЕСТО вашего document.body.addEventListener("click", ...))
+    // Теперь он в createFloatingAddButton (см. выше) — там openModal вызывается напрямую.
+
+    // ----- КНОПКА СОХРАНЕНИЯ (если нужно добавить логику создания) -----
+    // Пока это заглушки. Добавьте fetch в API здесь.
+    document.getElementById('create-student-btn').addEventListener('click', () => {
+        // TODO: Соберите данные из инпутов и отправьте POST на API/students
+        closeModal('create-student-modal');
+        loadData();  // Перезагрузить данные после создания
+    });
+
+    document.getElementById('create-lesson-btn').addEventListener('click', () => {
+        // TODO: Соберите данные из инпутов и отправьте POST на API/lessons
+        closeModal('create-lesson-modal');
+        loadData();  // Перезагрузить данные после создания
+    });
+
+</script>
 </body>
 </html>
