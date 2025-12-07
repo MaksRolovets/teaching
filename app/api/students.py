@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.test import StudentCreate, StudentResponse, select_users, create_table, select_student, insert_student
+from app.test import StudentCreate, StudentResponse, select_users, create_table, select_student, insert_student, update_student_orm, delete_student_orm
 
 router = APIRouter()
 
@@ -12,7 +12,7 @@ async def get_all_students():
         raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
     return result
 
-@router.get("/get/{user_id}")
+@router.get("/{user_id}")
 async def get_student(user_id : int):
     try:
         result = await select_student(user_id)
@@ -23,6 +23,8 @@ async def get_student(user_id : int):
 @router.post("/create")
 async def create_students(data : StudentCreate):
     try:
+        if data.descriptions is None:
+            data.descriptions = ""
         result = await insert_student(data)
     except:
         raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
@@ -36,20 +38,18 @@ async def get_info_students():
           "revenue":0}
     return data
 
-@router.get("/stud")
-async def get_stud():
-    data = [{"name":"Максончик епта","age":15, "id":1},
-            {"name":"Максончик no епта","age":15, "id":2},
-    ]
-    return data
-@router.get("/{id}")
-async def get_student_id(id : int):
-    if id == 1:
-        data = {"name":"Макс",
-                "age":12,
-                "info":"алкоголик"}
-    else:
-        data = {"name":"Макс2",
-                "age":123,
-                "info":"алкоголик2"}
-    return data
+@router.put("/update/{id}")
+async def update_student(id : int,data : dict):
+    try:
+        result = await update_student_orm(data=data, user_id=id)
+    except:
+        raise HTTPException(status_code=500, detail="ошибка со стоороны бд")
+    return {"message":"Информация обновлена!"}
+
+@router.delete("/{id}")
+async def delete_student(id : int):
+    try:
+        result = await delete_student_orm(id)
+    except:
+        raise HTTPException(status_code=500, detail="DB error")
+    return result

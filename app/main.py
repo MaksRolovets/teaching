@@ -20,10 +20,17 @@ templates = Jinja2Templates(directory="app/templates")
 app.include_router(api_router)
 @app.get("/", response_class=HTMLResponse)
 async def home(req: Request):
-    return templates.TemplateResponse("2.html", {"request":req})
+    return templates.TemplateResponse("4.html", {"request":req})
                
                
-               
+   # решить вопрос с навигацией(убрать даблклик) -
+   # добавить удаление ученика(перерабоать кнопку написать логику)
+   # добавить прокрут до сегодняшнего расписания
+   # на дашборде показывать сколько сегодня уроков осталось и через сколько селдующий урок и с кем
+   # создать изменени и модалку для распиасния
+   # перерабоатть карточки расписания - 
+
+   #             
                
                
                
