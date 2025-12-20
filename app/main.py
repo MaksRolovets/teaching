@@ -35,8 +35,8 @@ async def register(req: Request):
 @app.get("/login", response_class=HTMLResponse)
 async def login(req: Request):
     return templates.TemplateResponse("login.html", {"request":req})
-@app.get("loaderio-f76114f7f153da931515ecee87dda3d5")
-async def l():
+@app.get("loaderio-f76114f7f153da931515ecee87dda3d5/")
+async def l(req:Request):
     return {"message":"ok"}
    # решить вопрос с навигацией(убрать даблклик) -
    # добавить удаление ученика(перерабоать кнопку написать логику)
