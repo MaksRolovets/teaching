@@ -37,8 +37,7 @@ async def login(req: Request):
     return templates.TemplateResponse("login.html", {"request":req})
 @app.get("/loaderio-f76114f7f153da931515ecee87dda3d5/")
 async def l(req:Request):
-    return FileResponse("dev_api/app/loaderio-f76114f7f153da931515ecee87dda3d5.txt")
-   # решить вопрос с навигацией(убрать даблклик) -
+    return "loaderio-f76114f7f153da931515ecee87dda3d5"
    # добавить удаление ученика(перерабоать кнопку написать логику)
    # добавить прокрут до сегодняшнего расписания
    # на дашборде показывать сколько сегодня уроков осталось и через сколько селдующий урок и с кем
