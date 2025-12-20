@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +37,7 @@ async def login(req: Request):
     return templates.TemplateResponse("login.html", {"request":req})
 @app.get("/loaderio-f76114f7f153da931515ecee87dda3d5/")
 async def l(req:Request):
-    return {"message":"ok"}
+    return FileResponse("dev_api/app/loaderio-f76114f7f153da931515ecee87dda3d5.txt")
    # решить вопрос с навигацией(убрать даблклик) -
    # добавить удаление ученика(перерабоать кнопку написать логику)
    # добавить прокрут до сегодняшнего расписания
