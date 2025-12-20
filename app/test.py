@@ -9,7 +9,7 @@ import asyncio
 import datetime
 
 
-DATABASE_URL = "postgresql+asyncpg://makspg:1234@localhost/teaching"
+DATABASE_URL = "postgresql+asyncpg://admin:1234@localhost/teaching"
 
 engine = create_async_engine(url=DATABASE_URL)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)

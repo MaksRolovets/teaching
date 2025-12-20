@@ -38,7 +38,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("postgresql+asyncpg://makspg:1234@localhost/teaching")
+    url = config.get_main_option("postgresql+asyncpg://admin:1234@localhost/teaching")
     context.configure(
         url=url,
         target_metadata=target_metadata,
