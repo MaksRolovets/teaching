@@ -1,0 +1,87 @@
+<!-- landing.html - Базовая страница (landing page) для неавторизованных пользователей -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repetitor App - Добро пожаловать</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f4f8; color: #333; }
+        header { background-color: #4a90e2; color: white; padding: 40px 20px; text-align: center; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .feature { display: flex; align-items: center; margin-bottom: 40px; }
+        .emoji { width: 80px; height: 80px; border-radius: 50%; background-color: #eee; display: flex; align-items: center; justify-content: center; font-size: 40px; margin-right: 20px; flex-shrink: 0; }
+        .cta { text-align: center; margin-top: 40px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .btn { background-color: #4a90e2; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px; display: inline-block; }
+        footer { background-color: #333; color: white; text-align: center; padding: 20px; }
+
+        /* Адаптация для мобильных устройств */
+        @media (max-width: 768px) {
+            header { padding: 30px 15px; }
+            header h1 { font-size: 24px; }
+            header p { font-size: 16px; }
+            .container { padding: 20px 15px; }
+            .feature { flex-direction: column; align-items: center; text-align: center; margin-bottom: 30px; }
+            .emoji { margin-right: 0; margin-bottom: 15px; width: 80px; height: 80px; font-size: 40px; }
+            .feature h3 { font-size: 18px; }
+            .feature p { font-size: 14px; }
+            .cta { flex-direction: column; gap: 15px; }
+            .cta p { font-size: 16px; }
+            .btn { padding: 12px 25px; font-size: 16px; width: 80%; max-width: 300px; margin: 0 auto; }
+        }
+
+        @media (max-width: 480px) {
+            header { padding: 20px 10px; }
+            header h1 { font-size: 20px; }
+            header p { font-size: 14px; }
+            .container { padding: 15px 10px; }
+            .emoji { width: 60px; height: 60px; font-size: 30px; }
+            .btn { padding: 10px 20px; font-size: 14px; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Добро пожаловать в Repetitor App!</h1>
+        <p>Ваш надежный помощник для управления учениками и расписанием занятий</p>
+    </header>
+    
+    <div class="container">
+        <h2>Почему выбрать Repetitor App?</h2>
+        
+        <div class="feature">
+            <span class="emoji">📅</span>
+            <div>
+                <h3>Удобное расписание</h3>
+                <p>Планируйте занятия в календаре, списке или таблице. Автоматический скролл к сегодняшнему дню и напоминания.</p>
+            </div>
+        </div>
+        
+        <div class="feature">
+            <span class="emoji">👥</span>
+            <div>
+                <h3>Управление учениками</h3>
+                <p>Храните контакты, заметки и прогресс. Легко добавляйте, редактируйте или удаляйте записи.</p>
+            </div>
+        </div>
+        
+        <div class="feature">
+            <span class="emoji">📊</span>
+            <div>
+                <h3>Аналитика и дашборд</h3>
+                <p>Отслеживайте статистику: количество учеников, занятий, посещаемость и доходы.</p>
+            </div>
+        </div>
+        
+        <div class="cta">
+            <p>Готовы начать? Войдите или зарегистрируйтесь!</p>
+            <a href="login" class="btn">Войти</a>
+            <a href="register" class="btn">Зарегистрироваться</a>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 Repetitor App. Все права защищены.</p>
+    </footer>
+</body>
+</html>

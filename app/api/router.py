@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 from app.api import students
-from app.api import lessons
+from app.api import lessons, auth
 
 
 api_router = APIRouter()
 
 api_router.include_router(students.router, prefix="/students", tags=["Students"])
 api_router.include_router(lessons.router, prefix="/lessons", tags=["Lessons"])
+api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])

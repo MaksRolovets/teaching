@@ -4,6 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Учебное приложение</title>
+        <style>
+        /* Скрываем тело страницы до проверки токена, чтобы не было мигания */
+        body { display: none; }
+    </style>
+    <script type="module">
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            // Функция для обновления access токена через refresh
+            async function refreshAccessToken() {
+                try {
+                    const res = await fetch('/auth/refresh', {
+                        method: 'POST',
+                        credentials: 'include' // важно, чтобы refresh cookie ушёл
+                    });
+
+                    if (!res.ok) {
+                        // Refresh недействителен → разлогиниваем пользователя
+                        localStorage.removeItem('accessToken');
+                        return false;
+                    }
+
+                    const data = await res.json();
+                    localStorage.setItem('accessToken', data.access_token);
+                    return true;
+                } catch (err) {
+                    console.error('Ошибка при обновлении access токена:', err);
+                    localStorage.removeItem('accessToken');
+                    return false;
+                }
+            }
+
+            // Основная логика загрузки страницы
+            let hasAccess = !!localStorage.getItem('accessToken');
+
+                document.body.style.display = 'block';
+
+
+            // Если токен есть или успешно обновили → показываем страницу
+           // document.body.style.display = 'block';
+
+            // Здесь можно запускать основной код приложения
+            // Например: loadData(); loadDashboardData();
+        });
+    </script>
+
     <style>
         /* styles.css */
 * {
@@ -1544,6 +1589,45 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
     z-index: 9;
     margin: 0;
 }
+/* Фикс для кнопки "Сегодня" на мобильных: вертикальный стек + перемещение кнопки вниз */
+@media (max-width: 767px) {
+    .schedule-header-sticky {
+        flex-direction: column; /* Вертикальный стек вместо горизонтального */
+        gap: 12px; /* Расстояние между табами и кнопкой */
+        padding: 12px 16px 16px; /* Немного больше padding снизу для кнопки */
+        align-items: stretch; /* Табы растягиваются на всю ширину */
+    }
+    
+    .schedule-tabs {
+        order: 1; /* Табы сверху */
+        width: 100%; /* Полная ширина для лучшего вида */
+        justify-content: center; /* Центрируем табы */
+    }
+    
+    .today-btn-compact {
+        order: 2; /* Кнопка снизу */
+        align-self: center; /* Центрируем кнопку */
+        padding: 10px 16px; /* Чуть больше padding для тача */
+        font-size: 16px; /* Больший шрифт на мобильных */
+        min-width: 120px; /* Минимальная ширина, чтобы не сжималась */
+    }
+    
+    /* Дополнительно: если табы слишком длинные, скролл их горизонтально */
+    .schedule-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Скрываем скроллбар в Firefox */
+    }
+    
+    .schedule-tabs::-webkit-scrollbar {
+        display: none; /* Скрываем скроллбар в Chrome/Safari */
+    }
+}
+@media (max-width: 767px) {
+    .bottom-sheet {
+        height: 92%;
+    }
+}
     </style>
 </head>
 <body>
@@ -1616,57 +1700,56 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
         </div>
     </div>
     
-    <!-- Страница Расписание -->
-    <div id="schedule" class="page">
-        <h1 style="margin-bottom: 20px;">Расписание</h1>
-        
-        <!-- Табы -->
-       <div class="schedule-header-sticky">
-    <div class="schedule-tabs">
-        <div class="schedule-tab active" data-mode="list">Список</div>
-        <div class="schedule-tab" data-mode="table">Таблица</div>
-        <div class="schedule-tab" data-mode="calendar">Календарь</div>
+<!-- Страница Расписание -->
+<div id="schedule" class="page">
+    <h1 style="margin-bottom: 20px;">Расписание</h1>
+    
+    <!-- Табы и кнопка "Сегодня" (sticky-хедер) -->
+    <div class="schedule-header-sticky">
+        <div id="schedule-tabs-container" class="schedule-tabs">
+            <div class="schedule-tab active" data-mode="list">Список</div>
+            <div class="schedule-tab" data-mode="table">Таблица</div>
+            <div class="schedule-tab" data-mode="calendar">Календарь</div>
+        </div>
+
+        <button id="today-btn" class="today-btn-compact" onclick="handleTodayButton()">
+            Сегодня
+        </button>
     </div>
 
-    <button id="today-btn" class="today-btn-compact" onclick="scrollToToday()">
-        Сегодня
-    </button>
-</div>
-
-<!-- Режим Список -->
-<div id="schedule-list-view" class="schedule-view active">
-    <div id="lessons-container">
-        <!-- Карточки будут здесь -->
+    <!-- Режим Список -->
+    <div id="schedule-list-view" class="schedule-view active">
+        <div id="lessons-container">
+            <!-- Карточки будут здесь -->
+        </div>
     </div>
-</div>
         
-        <div id="schedule-table-view" class="schedule-view">
-            <!-- Интеграция недельной сетки вместо заглушки -->
-            <div class="top-controls">
-                <button class="btn gray" onclick="prevWeek()">← Пред</button>
+    <div id="schedule-table-view" class="schedule-view">
+        <!-- Интеграция недельной сетки вместо заглушки -->
+        <div class="top-controls">
+            <button class="btn gray" onclick="prevWeek()">← Пред</button>
 
-                <!-- Dropdown -->
-                <div class="dropdown">
-                    <div class="dropdown-button" onclick="toggleDropdown()" id="dropdown-label">
-                        Выбрать неделю
-                    </div>
-                    <div class="dropdown-menu" id="dropdown-menu"></div>
+            <!-- Dropdown -->
+            <div class="dropdown">
+                <div class="dropdown-button" onclick="toggleDropdown()" id="dropdown-label">
+                    Выбрать неделю
                 </div>
-
-                <button class="btn gray" onclick="nextWeek()">След →</button>
-                <button class="btn green" onclick="goToday()">Сегодня</button>
+                <div class="dropdown-menu" id="dropdown-menu"></div>
             </div>
 
-            <div id="week-grid" class="week-grid"></div>
+            <button class="btn gray" onclick="nextWeek()">След →</button>
+            <!-- Зелёная кнопка "Сегодня" удалена — теперь она универсальная в sticky-хедере -->
         </div>
-        
-        <div id="schedule-calendar-view" class="schedule-view">
-            <p style="opacity: .6; margin-top: 20px;">Здесь будет календарь (позже добавим)</p>
-        </div>
-        
-        <!-- Кнопка добавить -->
-        
+
+        <div id="week-grid" class="week-grid"></div>
     </div>
+    
+    <div id="schedule-calendar-view" class="schedule-view">
+        <p style="opacity: .6; margin-top: 20px;">Здесь будет календарь (позже добавим)</p>
+    </div>
+    
+    <!-- Кнопка добавить -->
+</div>
     
     <!-- Страница Отчеты -->
     <div id="reports" class="page">
@@ -1782,7 +1865,8 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
             Создать ученика
         </button>
     </div>
-</div><div id="create-lesson-modal" class="bottom-sheet">
+</div>
+<div id="create-lesson-modal" class="bottom-sheet">
     <div class="sheet-header">
         <div class="sheet-title">Новое занятие</div>
         <button class="sheet-close">✖</button>
@@ -1847,259 +1931,400 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
         <div class="tp-center-line"></div>
     </div>
 </div>
+<div id="edit-lesson-modal" class="bottom-sheet">
+    <div class="sheet-header">
+        <div class="sheet-title">Редактировать занятие</div>
+        <button class="sheet-close">✖</button>
+    </div>
 
+    <div class="sheet-content">
+        <label class="sheet-field">
+    <span>Ученик</span>
+    <div id="edit-lesson-student-display" class="custom-input" style="cursor: default; background: #f8f8f8; pointer-events: none;">
+        <!-- Текст заполнится JS'ом, без стрелки и клика -->
+    </div>
+    <input type="hidden" id="edit-lesson-student-id">
+</label>
 
-    <script>
-        // const API = "http://192.168.0.108:8000";
-        // const API = "http://172.20.10.2:8000";
-       // const API = "http://127.0.0.1:8000";
-        const API = "https://repetitor-web-app.cloudpub.ru"
+        <label class="sheet-field">
+            <span>Дата занятия</span>
+            <input type="date" id="edit-lesson-date" class="custom-input custom-date-time" required>
+        </label>
 
-
-        let sidebarWasOpen = false;
-
-        // Логика навигации
-        class Navigation {
-            constructor() {
-                this.currentPage = 'dashboard';
-                this.init();
-            }
-            
-            init() {
-                // Обработчики для десктопного меню
-                const desktopLinks = document.querySelectorAll('.desktop-nav .nav-link');
-                desktopLinks.forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.navigateTo(link.dataset.page);
-                    });
-                });
-                
-                // Обработчики для мобильного меню
-                const mobileLinks = document.querySelectorAll('.mobile-nav-item');
-                mobileLinks.forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        this.navigateTo(link.dataset.page);
-                    });
-                });
-                
-                // Обработка изменения размера окна
-                window.addEventListener('resize', this.handleResize.bind(this));
-            }
-            
-            navigateTo(pageId) {
-                // Скрываем текущую страницу
-                const currentPage = document.getElementById(this.currentPage);
-                if (currentPage) {
-                    currentPage.classList.remove('active');
-                }
-                
-                // Убираем активный класс у всех ссылок
-                document.querySelectorAll('.nav-link.active, .mobile-nav-item.active').forEach(item => {
-                    item.classList.remove('active');
-                });
-
-                // ВСЕГДА удаляем кнопку "+" перед проверкой (ВМЕСТО: раньше удаляли только если не students/schedule)
-                removeFloatingAddButton();
-
-                // Закрываем любую открытую модалку (ДОБАВИЛЕНО: на случай, если модалка осталась открытой)
-                const openModalEl = document.querySelector('.bottom-sheet.open');
-                if (openModalEl) {
-                    closeModal(openModalEl.id);
-                }
-
-                // Создаём кнопку только если нужно (без проверки на существование — она уже удалена)
-                if (["students", "schedule"].includes(pageId)) {
-                    createFloatingAddButton(pageId);
-                }
-
-                // Показываем новую страницу
-                const newPage = document.getElementById(pageId);
-                if (newPage) {
-                    newPage.classList.add('active');
-                    this.currentPage = pageId;
-                    
-                    if (pageId !== "students") {
-                        document.getElementById("student-sidebar").classList.remove("open");
-                    } else {
-                        if (sidebarWasOpen) {
-                            document.getElementById("student-sidebar").classList.add("open");
-                        }
-                    }
-                    
-                    // Обновляем активные ссылки
-                    document.querySelectorAll(`[data-page="${pageId}"]`).forEach(link => {
-                        link.classList.add('active');
-                    });
-                    
-                    // Прокручиваем к верху на мобильных
-                    if (window.innerWidth < 768) {
-                        window.scrollTo(0, 0);
-                    }
-                }
-                // Добавлено: если перешли на schedule и таб "Таблица" активен, рендерим неделю
-                if (pageId === "schedule" && document.querySelector('.schedule-tab[data-mode="table"].active')) {
-                    renderDropdown();
-                    renderWeek();
-                }
-            }
-            
-            handleResize() {
-                console.log('Размер окна изменен:', window.innerWidth);
-            }
-        }
+        <div class="time-fields">
+            <label class="sheet-field">
+                <span>Начало</span>
+                <div id="edit-lesson-start-picker" class="time-picker">12:00</div>
+                <input type="hidden" id="edit-lesson-start-input">
+            </label>
+            <label class="sheet-field">
+                <span>Конец</span>
+                <div id="edit-lesson-end-picker" class="time-picker">13:00</div>
+                <input type="hidden" id="edit-lesson-end-input">
+            </label>
+        </div>
         
-        // Инициализация навигации
-        const navigation = new Navigation();
+        <label class="sheet-field">
+            <span>Заметки (необязательно)</span>
+            <input type="text" id="edit-lesson-notes" class="custom-input" placeholder="Например: повторение глаголов">
+        </label>
         
-        // ===== Хранилище данных =====
-        let appData = {
-            dashboard: null,
-            students: [],
-            schedule: []
-        };
+        <label class="sheet-field">
+            <input type="checkbox" id="edit-lesson-recurring">
+            <span style="margin-left:8px; font-size:15px;">Повторять еженедельно</span>
+        </label>
         
-        // ===== Универсальная загрузка данных =====
-        async function loadData() {
-    // try {
-    //     const [studentsRes, lessonsRes] = await Promise.all([
-    //         fetch(API + "/students/"),
-    //         fetch(API + "/lessons/")
-    //     ]);
-         try {
-        const [studentsRes] = await Promise.all([
-            fetch(API + "/students/"),
-            // fetch(API + "/lessons/")
-        ]);
+        <button id="edit-lesson-btn" class="sheet-save-btn">
+            Сохранить изменения
+        </button>
+    </div>
+</div>
+
+<script>
+// const API = "http://192.168.0.108:8000";
+// const API = "http://172.20.10.2:8000";
+// const API = "http://127.0.0.1:8000";
+const API = "https://repetitor-web-app.cloudpub.ru"
 
 
-        const students = await studentsRes.json();
-        // const lessons = await lessonsRes.json();
+// Функция для обновления access токена
+let refreshPromise = null;
 
-        console.log("Загружено студентов:", students);
-        console.log("Загружено занятий:", lessons); // ← ДОЛЖНО БЫТЬ ВИДНО!
-
-        appData.students = students;
-        appData.schedule = lessons; // ← сюда точно попадает
-
-        renderStudents();
-        renderScheduleList(); // ← теперь точно вызовется
-    } catch (err) {
-        console.error("Ошибка загрузки данных:", err);
+async function refreshAccessToken() {
+    if (refreshPromise) {
+        return refreshPromise;
     }
+
+    refreshPromise = (async () => {
+        const res = await fetch(API + '/auth/refresh', {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        if (!res.ok) {
+            localStorage.removeItem('accessToken');
+            window.location.href = '/home';
+            throw new Error('Refresh token expired');
+        }
+
+        const data = await res.json();
+        localStorage.setItem('accessToken', data.access_token);
+        return data.access_token;
+    })();
+
+    try {
+        return await refreshPromise;
+    } finally {
+        refreshPromise = null;
+    }
+}
+
+
+// Основная обёртка для fetch с автопродлением токена
+async function apiClient(endpoint, options = {}, retry = true) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(API + endpoint, {
+        ...options,
+        headers,
+        credentials: 'include',
+    });
+
+    if (response.status === 401 && retry) {
+        await refreshAccessToken();
+        return apiClient(endpoint, options, false);
+    }
+
+    return response;
+}
+
+
+
+let sidebarWasOpen = false;
+// Глобальный флаг для первого загрузки schedule (авто-скролл к "сегодня")
+let firstScheduleLoad = true;   
+let selectingStudentForEdit = false;
+// Логика навигации
+class Navigation {
+    constructor() {
+        this.currentPage = 'dashboard';
+        this.init();
+    }
+    
+    init() {
+        // Обработчики для десктопного меню
+        const desktopLinks = document.querySelectorAll('.desktop-nav .nav-link');
+        desktopLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigateTo(link.dataset.page);
+            });
+        });
+        
+        // Обработчики для мобильного меню
+        const mobileLinks = document.querySelectorAll('.mobile-nav-item');
+        mobileLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigateTo(link.dataset.page);
+            });
+        });
+        
+        // Обработка изменения размера окна
+        window.addEventListener('resize', this.handleResize.bind(this));
+    }
+    
+   navigateTo(pageId) {
+// *** НОВОЕ: Сохраняем позицию скролла текущей страницы перед уходом ***
+localStorage.setItem(`scroll_${this.currentPage}`, window.scrollY);
+
+// Скрываем текущую страницу
+const currentPage = document.getElementById(this.currentPage);
+if (currentPage) {
+    currentPage.classList.remove('active');
+}
+
+// Убираем активный класс у всех ссылок
+document.querySelectorAll('.nav-link.active, .mobile-nav-item.active').forEach(item => {
+    item.classList.remove('active');
+});
+
+// ВСЕГДА удаляем кнопку "+" перед проверкой
+removeFloatingAddButton();
+
+// Закрываем любую открытую модалку
+const openModalEl = document.querySelector('.bottom-sheet.open');
+if (openModalEl) {
+    closeModal(openModalEl.id);
+}
+
+// Создаём кнопку только если нужно
+if (["students", "schedule"].includes(pageId)) {
+    createFloatingAddButton(pageId);
+}
+
+// Показываем новую страницу
+const newPage = document.getElementById(pageId);
+if (newPage) {
+    newPage.classList.add('active');
+    this.currentPage = pageId;
+    
+    if (pageId !== "students") {
+        document.getElementById("student-sidebar").classList.remove("open");
+    } else {
+        if (sidebarWasOpen) {
+            document.getElementById("student-sidebar").classList.add("open");
+        }
+    }
+    
+    // Обновляем активные ссылки
+    document.querySelectorAll(`[data-page="${pageId}"]`).forEach(link => {
+        link.classList.add('active');
+    });
+    
+    // *** ВСТАВЬТЕ ЗДЕСЬ ВАШ ФРАГМЕНТ: Восстанавливаем позицию скролла для новой страницы (но не для table в schedule) ***
+    const isTableActive = pageId === 'schedule' && document.querySelector('.schedule-tab[data-mode="table"].active');
+    const savedScroll = localStorage.getItem(`scroll_${pageId}`) || 0;
+    if (!isTableActive) { // Игнорируем для table
+        window.scrollTo(0, savedScroll);
+    }
+    // Прокручиваем к верху на мобильных (но только если нет сохранённого скролла > 0 и не table)
+    if (window.innerWidth < 768 && savedScroll === 0 && !isTableActive) {
+        window.scrollTo(0, 0);
+    }
+    // *** КОНЕЦ ВАШЕГО ФРАГМЕНТА ***
+}
+// Добавлено: если перешли на schedule и таб "Таблица" активен, рендерим неделю
+if (pageId === "schedule" && document.querySelector('.schedule-tab[data-mode="table"].active')) {
+    renderDropdown();
+    renderWeek();
+    goToday();  // Открываем текущую неделю
+    setTimeout(() => {
+        window.scrollTo(0, 0);  // Всегда скролл к верху при переходе в table
+    }, 100);
+}
+
+// ДОБАВЛЕНО: Авто-скролл при первом переходе на schedule
+if (pageId === 'schedule' && firstScheduleLoad) {
+    setTimeout(() => {
+        if (document.querySelector('.schedule-tab[data-mode="list"].active')) {
+            scrollToToday();
+        }
+        firstScheduleLoad = false;
+    }, 500);
+}
+
+// Dispatch события после рендера (если у вас уже есть)
+setTimeout(() => {
+    const event = new CustomEvent('pageRendered', { detail: { page: pageId } });
+    document.dispatchEvent(event);
+    console.log(`Страница ${pageId} отрендерена, событие отправлено`);
+}, 100);
+}
+    
+    handleResize() {
+        console.log('Размер окна изменен:', window.innerWidth);
+    }
+}
+
+// Инициализация навигации
+const navigation = new Navigation();
+
+// ===== Хранилище данных =====
+let appData = {
+    dashboard: null,
+    students: [],
+    schedule: []
+};
+
+// ===== Универсальная загрузка данных =====
+async function loadData() {
+// try {
+//     const [studentsRes, lessonsRes] = await Promise.all([
+//         apiClient( "/students/"),
+//         apiClient( "/lessons/")
+//     ]);
+     try {
+    const [studentsRes] = await Promise.all([
+        apiClient( "/students/"),
+        // apiClient( "/lessons/")
+    ]);
+
+
+    const students = await studentsRes.json();
+    // const lessons = await lessonsRes.json();
+
+    console.log("Загружено студентов:", students);
+    console.log("Загружено занятий:", lessons); // ← ДОЛЖНО БЫТЬ ВИДНО!
+
+    appData.students = students;
+    appData.schedule = lessons; // ← сюда точно попадает
+
+    renderStudents();
+    renderScheduleList(); // ← теперь точно вызовется
+} catch (err) {
+    console.error("Ошибка загрузки данных:", err);
+}
 }
 // ===== Рендер дашборда =====
 async function loadDashboardData() {
-    try {
-        //const response = await fetch(API +  '/students/info');
-    //     if (response.status === 0||!response.ok ||response.status === 404 || !data || Object.keys(data).length === 0) {
-    //     response = await fetch(`${API}/students/info`);
-    // }
-        const data = await response.json(); 
+try {
+    //const response = await apiClient(  '/students/info');
+//     if (response.status === 0||!response.ok ||response.status === 404 || !data || Object.keys(data).length === 0) {
+//     response = await fetch(`${API}/students/info`);
+// }
+    const data = await response.json(); 
 
-        // Обновляем статистику
-        const stats = document.querySelectorAll('#dashboard .stat-card .stat-value');
-        stats[0].textContent = data.studentsCount;
-        stats[1].textContent = data.lessonsCount;
-        stats[2].textContent = data.attendance + '%';
-        stats[3].textContent = data.revenue + ' ₽';
+    // Обновляем статистику
+    const stats = document.querySelectorAll('#dashboard .stat-card .stat-value');
+    stats[0].textContent = data.studentsCount;
+    stats[1].textContent = data.lessonsCount;
+    stats[2].textContent = data.attendance + '%';
+    stats[3].textContent = data.revenue + ' ₽';
 
-        // Обновляем последнюю активность
-        const activityBlock = document.querySelector('#dashboard .section');
-        activityBlock.innerHTML = `
-            <h2 style="margin-bottom: 15px;">Последняя активность</h2>
-            ${data.activity.map(a => `<p>${a}</p>`).join('')}
-        `;
+    // Обновляем последнюю активность
+    const activityBlock = document.querySelector('#dashboard .section');
+    activityBlock.innerHTML = `
+        <h2 style="margin-bottom: 15px;">Последняя активность</h2>
+        ${data.activity.map(a => `<p>${a}</p>`).join('')}
+    `;
 
-    } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-    }
+} catch (error) {
+    console.error('Ошибка загрузки данных:', error);
+}
 }
 
 async function loadSchedule() {
-    try {
-        const res = await fetch(API +  "/lessons/");
-        const schedule = await res.json();
+try {
+    const res = await apiClient(  "/lessons/");
+    const schedule = await res.json();
 
-        appData.schedule = schedule;
-        renderScheduleList();
-    } catch (e) {
-        console.error("Ошибка загрузки расписания:", e);
-    }
+    appData.schedule = schedule;
+    renderScheduleList();
+} catch (e) {
+    console.error("Ошибка загрузки расписания:", e);
+}
 }
 
 
 // ===== Рендер учеников =====
 // === РЕНДЕР СПИСКА УЧЕНИКОВ (ИСПРАВЛЕНО) ===
 function renderStudents() {
-    const container = document.getElementById('students-list');
-    if (!appData.students || appData.students.length === 0) {
-        container.innerHTML = "<p style='text-align:center; color:#8e8e93; padding:40px;'>Нет учеников</p>";
-        return;
-    }
-
-    container.innerHTML = appData.students
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((s, i) => `
-            <div class="student-card" data-id="${s.id}">
-                <div class="student-info">
-                    <div class="student-index">${i + 1}</div>
-                    <div class="student-name">${s.name}</div>
-                </div>
-                <div class="student-class">Класс ${s.grade || s.age || '?'}</div>
-            </div>
-        `)
-        .join('');
+const container = document.getElementById('students-list');
+if (!appData.students || appData.students.length === 0) {
+    container.innerHTML = "<p style='text-align:center; color:#8e8e93; padding:40px;'>Нет учеников</p>";
+    return;
 }
-    
+
+container.innerHTML = appData.students
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((s, i) => `
+        <div class="student-card" data-id="${s.id}">
+            <div class="student-info">
+                <div class="student-index">${i + 1}</div>
+                <div class="student-name">${s.name}</div>
+            </div>
+            <div class="student-class">Класс ${s.grade || s.age || '?'}</div>
+        </div>
+    `)
+    .join('');
+}
+
 function createFloatingAddButton(pageId) {
-    // если уже существует — ничего не делаем
-    if (document.getElementById("floating-add-btn")) return;
+// если уже существует — ничего не делаем
+if (document.getElementById("floating-add-btn")) return;
 
-    const btn = document.createElement("button");
-    btn.id = "floating-add-btn";
-    btn.className = "floating-add-btn";
-    btn.textContent = "+";
-    btn.dataset.page = pageId;
+const btn = document.createElement("button");
+btn.id = "floating-add-btn";
+btn.className = "floating-add-btn";
+btn.textContent = "+";
+btn.dataset.page = pageId;
 
-    // важное: повесим обработчик прямо на кнопку (не через делегат)
-    // используем pointerup — он надёжнее при тачах/свайпах
-    const openHandler = (ev) => {
-        // предотвратить дальнейшую обработку (на случай, если overlay ловит)
-        ev.stopPropagation();
-        ev.preventDefault();
+// важное: повесим обработчик прямо на кнопку (не через делегат)
+// используем pointerup — он надёжнее при тачах/свайпах
+const openHandler = (ev) => {
+    // предотвратить дальнейшую обработку (на случай, если overlay ловит)
+    ev.stopPropagation();
+    ev.preventDefault();
 
-        if (btn.dataset.page === "students") {
-            openModal('create-student-modal');
-        } else if (btn.dataset.page === "schedule") {
-            openModal('create-lesson-modal');
-        }
-    };
+    if (btn.dataset.page === "students") {
+        openModal('create-student-modal');
+    } else if (btn.dataset.page === "schedule") {
+        openModal('create-lesson-modal');
+    }
+};
 
-    btn.addEventListener('pointerup', openHandler);
-    // на всякий случай — также слушаем click (fallback)
-    btn.addEventListener('click', openHandler);
+btn.addEventListener('pointerup', openHandler);
+// на всякий случай — также слушаем click (fallback)
+btn.addEventListener('click', openHandler);
 
-    // чтобы элемент был сразу кликабельным и не "залипал"
-    btn.style.pointerEvents = "";
+// чтобы элемент был сразу кликабельным и не "залипал"
+btn.style.pointerEvents = "";
 
-    // сохраняем ссылку на handler чтобы можно было убрать при удалении
-    btn.__openHandler = openHandler;
+// сохраняем ссылку на handler чтобы можно было убрать при удалении
+btn.__openHandler = openHandler;
 
-    document.body.appendChild(btn);
+document.body.appendChild(btn);
 }
 
 function removeFloatingAddButton() {
-    const btn = document.getElementById("floating-add-btn");
-    if (!btn) return;
-    // если повесили handler — удаляем
-    if (btn.__openHandler) {
-        btn.removeEventListener('pointerup', btn.__openHandler);
-        btn.removeEventListener('click', btn.__openHandler);
-        delete btn.__openHandler;
-    }
-    btn.remove();
+const btn = document.getElementById("floating-add-btn");
+if (!btn) return;
+// если повесили handler — удаляем
+if (btn.__openHandler) {
+    btn.removeEventListener('pointerup', btn.__openHandler);
+    btn.removeEventListener('click', btn.__openHandler);
+    delete btn.__openHandler;
+}
+btn.remove();
 }
 
 function renderScheduleList() {
@@ -2107,16 +2332,16 @@ function renderScheduleList() {
     const todayBtn = document.getElementById("today-btn");
     if (!container || !todayBtn) return;
 
-    if (!appData.schedule || appData.schedule.length === 0) {
+    if (!appData.schedule) {
         container.innerHTML = `<p style="text-align:center;color:#8e8e93;padding:100px 20px;">Нет запланированных занятий</p>`;
         todayBtn.className = "today-btn-compact no-lessons";
         todayBtn.textContent = "Сегодня";
         return;
     }
 
-    // ФИКС: получаем сегодняшнюю дату в формате YYYY-MM-DD
+    // ФИКС: получаем сегодняшнюю дату в формате YYYY-MM-DD (локальную дату, без UTC)
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0]; // например "2025-12-07"
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const lessonsByDate = {};
     let hasToday = false;
@@ -2132,11 +2357,23 @@ function renderScheduleList() {
         }
     });
 
+    // ДОБАВЛЕНО: Всегда добавляем сегодняшний день, даже если пустой
+    if (!lessonsByDate[todayStr]) {
+        lessonsByDate[todayStr] = [];
+        hasToday = true;
+    }
+
     const sortedDates = Object.keys(lessonsByDate).sort();
+
+    // Фильтруем только сегодняшние и будущие даты
+    const futureDates = sortedDates.filter(date => date >= todayStr);
 
     const formatDateHeader = (dateStr) => {
         const isToday = dateStr === todayStr;
-        const isTomorrow = dateStr === new Date(today.getTime() + 86400000).toISOString().split('T')[0];
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+        const isTomorrow = dateStr === tomorrowStr;
         const isPast = dateStr < todayStr;
 
         const date = new Date(dateStr + 'T12:00:00'); // добавляем время, чтобы не было проблем с часовыми поясами
@@ -2152,7 +2389,7 @@ function renderScheduleList() {
     let html = "";
     let todayFound = false;
 
-    sortedDates.forEach(date => {
+    futureDates.forEach(date => {
         const { text, isToday, isPast } = formatDateHeader(date);
         const lessons = lessonsByDate[date].sort((a, b) => a.begin.localeCompare(b.begin));
 
@@ -2165,32 +2402,50 @@ function renderScheduleList() {
             </div>
         `;
 
-        lessons.forEach(l => {
-            const extra = [];
-            if (l.grade) extra.push(`${l.grade} класс`);
-            if (l.notes) extra.push(l.notes);
-            const extraText = extra.length ? extra.join(" • ") : "";
-
+        if (lessons.length === 0) {
+            // ДОБАВЛЕНО: Пустая карточка для пустого дня (включая сегодня)
             html += `
-                <div class="lesson-card-new ${isPast ? 'past' : ''} ${isToday ? 'today' : ''}" 
-                     data-lesson-id="${l.id}">
+                <div class="lesson-card-new empty ${isPast ? 'past' : ''} ${isToday ? 'today' : ''}">
                     <div class="lesson-main">
-                        <span class="lesson-time">${l.begin} – ${l.end}</span>
-                        <span class="lesson-name">${l.name || "Ученик"}</span>
-                        ${extraText ? `<span class="lesson-grade">${extraText}</span>` : ""}
-                    </div>
-
-                    <div class="lesson-actions">
-                        <button class="lesson-menu" onclick="toggleLessonMenu(event, ${l.id})">⋮</button>
-                        <div class="lesson-dropdown" id="dropdown-${l.id}">
-                            <div class="dropdown-item" onclick="editLesson(${l.id})">Изменить</div>
-                            <div class="dropdown-item delete" onclick="deleteLesson(${l.id})">Удалить</div>
-                        </div>
+                        <span class="lesson-name">Нет занятий</span>
                     </div>
                 </div>
             `;
-        });
+        } else {
+            lessons.forEach(l => {
+                const extra = [];
+                if (l.grade) extra.push(`${l.grade} класс`);
+                if (l.notes) extra.push(l.notes);
+                const extraText = extra.length ? extra.join(" • ") : "";
+
+                html += `
+                    <div class="lesson-card-new ${isPast ? 'past' : ''} ${isToday ? 'today' : ''}" 
+                         data-lesson-id="${l.id}">
+                        <div class="lesson-main">
+                            <span class="lesson-time">${l.begin} – ${l.end}</span>
+                            <span class="lesson-name">${l.name || "Ученик"}</span>
+                            ${extraText ? `<span class="lesson-grade">${extraText}</span>` : ""}
+                        </div>
+
+                        <div class="lesson-actions">
+                            <button class="lesson-menu" onclick="toggleLessonMenu(event, ${l.id})">⋮</button>
+                            <div class="lesson-dropdown" id="dropdown-${l.id}">
+                                <div class="dropdown-item" onclick="editLesson(${l.id})">Изменить</div>
+                                <div class="dropdown-item delete" onclick="deleteLesson(${l.id})">Удалить</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
     });
+
+    // Если нет предстоящих занятий, покажем сообщение
+    if (futureDates.length === 0) {
+        html = `<p style="text-align:center;color:#8e8e93;padding:100px 20px;">Нет предстоящих занятий</p>`;
+        todayBtn.className = "today-btn-compact no-lessons";
+        todayBtn.textContent = "Сегодня";
+    }
 
     container.innerHTML = html;
 
@@ -2203,75 +2458,104 @@ function renderScheduleList() {
     }
     todayBtn.textContent = "Сегодня";
 
-    // Прокрутка к сегодня
-    if (todayFound && !window.hasScrolledToToday) {
-        window.hasScrolledToToday = true;
-        setTimeout(scrollToToday, 300);
-    }
+    updateTodayButtonState();
 }
 
 
 async function loadStudentsData() {
-    try {
-        const response = await fetch(API +  '/students/stud');
-      
-        const students = await response.json();
+try {
+    const response = await apiClient('/students/stud');
+  
+    const students = await response.json();
 
-        const container = document.getElementById('students-list');
-        container.innerHTML = ""; // очищаем
+    const container = document.getElementById('students-list');
+    container.innerHTML = ""; // очищаем
 
-        students.forEach(student => {
-            const card = document.createElement('p');
-            card.textContent = `${student.name} — ${student.age} лет`;
-            container.appendChild(card);
-        });
+    students.forEach(student => {
+        const card = document.createElement('p');
+        card.textContent = `${student.name} — ${student.age} лет`;
+        container.appendChild(card);
+    });
 
-    } catch (error) {
-        console.error("Ошибка загрузки учеников:", error);
-    }
+} catch (error) {
+    console.error("Ошибка загрузки учеников:", error);
+}
 }
 
 async function openStudentSidebar(id, updateOnly = false) {  // ← ДОБАВИТЬ: параметр updateOnly
-    const sidebar = document.getElementById("student-sidebar");
-    
-    if (selectingStudentForLesson) {
-        const student = appData.students.find(s => s.id === parseInt(id));
-        if (!student) return;
+const sidebar = document.getElementById("student-sidebar");
 
-        document.getElementById('lesson-student-display').textContent = student.name;
-        document.getElementById('lesson-student-id').value = student.id;
-
-        selectingStudentForLesson = false;
-        navigation.navigateTo('schedule');
-        setTimeout(() => openModal('create-lesson-modal'), 200);
-        return;
-    }
-
-    if (!updateOnly) {  // ← ДОБАВИТЬ: оборачиваем открытие в if
-        sidebar.classList.add("open");
-        sidebarWasOpen = true;
-    }
-    sidebar.dataset.studentId = id;
-
+if (selectingStudentForLesson) {
     const student = appData.students.find(s => s.id === parseInt(id));
     if (!student) return;
 
-    document.getElementById("sidebar-name").textContent = student.name || "Без имени";
-    document.getElementById("sidebar-age").textContent = student.grade ? `${student.grade} класс` : "—";
-    document.getElementById("sidebar-info").textContent = student.descriptions || "нет данных";
-    document.getElementById("sidebar-phone").textContent = student.contacts || "нет данных";
+    document.getElementById('lesson-student-display').textContent = student.name;
+    document.getElementById('lesson-student-id').value = student.id;
+
+    selectingStudentForLesson = false;
+    navigation.navigateTo('schedule');
+    setTimeout(() => openModal('create-lesson-modal'), 200);
+    return;
 }
-        // Загружаем данные при старте
-        loadDashboardData();
-        // loadStudentsData();
-        // loadSchedule()
-        loadData();
-         
-        
-    document.querySelector(".close-sidebar").addEventListener("click", () => {
-    const sidebar = document.getElementById("student-sidebar");
+
+if (!updateOnly) {  // ← ДОБАВИТЬ: оборачиваем открытие в if
+    sidebar.classList.add("open");
+}
+sidebar.dataset.studentId = id;
+
+const student = appData.students.find(s => s.id === parseInt(id));
+if (!student) return;
+
+document.getElementById("sidebar-name").textContent = student.name || "Без имени";
+document.getElementById("sidebar-age").textContent = student.grade ? `${student.grade} класс` : "—";
+document.getElementById("sidebar-info").textContent = student.descriptions || "нет данных";
+document.getElementById("sidebar-phone").textContent = student.contacts || "нет данных";
+}
+    // Загружаем данные при старте
+    loadDashboardData();
+    // loadStudentsData();
+    // loadSchedule()
+    loadData();
+     
+    
+document.querySelector(".close-sidebar").addEventListener("click", () => {
+const sidebar = document.getElementById("student-sidebar");
+sidebar.classList.remove("open");
+sidebarWasOpen = false;
+
+// сброс режима редактирования
+document.getElementById("edit-buttons").style.display = "none";
+const currentId = sidebar.dataset.studentId;
+if (currentId) {
+    openStudentSidebar(currentId, true);  // ← ЗАМЕНИТЬ: добавь true для updateOnly
+}
+document.getElementById("sidebar-edit-btn").style.display = "block";
+});
+    
+// ===== Закрытие сайдбара свайпом вправо =====
+let startX = 0;
+
+const sidebar = document.getElementById("student-sidebar");
+
+sidebar.addEventListener("touchstart", (e) => {
+startX = e.touches[0].clientX;
+});
+
+sidebar.addEventListener("touchmove", (e) => {
+const deltaX = e.touches[0].clientX - startX;
+
+// Если тянем вправо — смещаем панель
+if (deltaX > 0) {
+    sidebar.style.transform = `translateX(${deltaX}px)`;
+}
+});
+
+sidebar.addEventListener("touchend", (e) => {
+const deltaX = e.changedTouches[0].clientX - startX;
+
+// Если смахнули вправо больше чем на 80px — закрываем
+if (deltaX > 80) {
     sidebar.classList.remove("open");
-    sidebarWasOpen = false;
     
     // сброс режима редактирования
     document.getElementById("edit-buttons").style.display = "none";
@@ -2280,343 +2564,408 @@ async function openStudentSidebar(id, updateOnly = false) {  // ← ДОБАВИ
         openStudentSidebar(currentId, true);  // ← ЗАМЕНИТЬ: добавь true для updateOnly
     }
     document.getElementById("sidebar-edit-btn").style.display = "block";
-});
-        
-    // ===== Закрытие сайдбара свайпом вправо =====
-let startX = 0;
+}
 
-const sidebar = document.getElementById("student-sidebar");
-
-sidebar.addEventListener("touchstart", (e) => {
-    startX = e.touches[0].clientX;
+// Возвращаем на место
+sidebar.style.transform = "";
 });
 
-sidebar.addEventListener("touchmove", (e) => {
-    const deltaX = e.touches[0].clientX - startX;
-
-    // Если тянем вправо — смещаем панель
-    if (deltaX > 0) {
-        sidebar.style.transform = `translateX(${deltaX}px)`;
-    }
-});
-
-sidebar.addEventListener("touchend", (e) => {
-    const deltaX = e.changedTouches[0].clientX - startX;
-
-    // Если смахнули вправо больше чем на 80px — закрываем
-    if (deltaX > 80) {
-        sidebar.classList.remove("open");
-        
-        // сброс режима редактирования
-        document.getElementById("edit-buttons").style.display = "none";
-        const currentId = sidebar.dataset.studentId;
-        if (currentId) {
-            openStudentSidebar(currentId, true);  // ← ЗАМЕНИТЬ: добавь true для updateOnly
-        }
-        document.getElementById("sidebar-edit-btn").style.display = "block";
-    }
-
-    // Возвращаем на место
-    sidebar.style.transform = "";
-});
-
-loadSchedule() // правильно вызываем расписание
+loadSchedule() 
+loadSchedule().then(() => {
+updateTodayButtonState();  // Начальная синхронизация
+});// правильно вызываем расписание
 // --------------------------------------
-// Переключение табов расписания
 document.querySelectorAll('.schedule-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const mode = tab.dataset.mode;
+tab.addEventListener('click', () => {
+    const mode = tab.dataset.mode;
 
-        document.querySelectorAll('.schedule-tab')
-            .forEach(t => t.classList.remove('active'));
+    // *** ИСПРАВЛЕНО: Сохраняем скролл перед сменой таба (для всех табов) ***
+    localStorage.setItem('scroll_schedule', window.scrollY);
 
-        tab.classList.add('active');
+    document.querySelectorAll('.schedule-tab')
+        .forEach(t => t.classList.remove('active'));
 
-        document.querySelectorAll('.schedule-view')
-            .forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
 
-        document.getElementById(`schedule-${mode}-view`).classList.add('active');
-        
-        // Добавлено: если таб "Таблица" — рендерим сетку недели
-        if (mode === 'table') {
-            renderDropdown();
-            renderWeek();
+    document.querySelectorAll('.schedule-view')
+        .forEach(v => v.classList.remove('active'));
+
+    document.getElementById(`schedule-${mode}-view`).classList.add('active');
+    
+    // *** ИСПРАВЛЕНО: Для table — всегда скролл к top, игнорируем сохранённый ***
+    if (mode === 'table') {
+        renderDropdown();
+        renderWeek();
+        goToday();  // Открываем текущую неделю (если нужно)
+        setTimeout(() => {
+            window.scrollTo(0, 0);  // Всегда к верху
+        }, 100);  // Небольшая задержка после рендера
+    }
+
+    // Для других табов — восстанавливаем сохранённый скролл
+    setTimeout(() => {
+        updateTodayButtonState();
+        if (tab.dataset.mode === 'list' && !document.getElementById("today-section")) {
+            renderScheduleList();
         }
-    });
+        if (mode !== 'table') {  // Только не для table
+            const savedScroll = localStorage.getItem('scroll_schedule') || 0;
+            window.scrollTo(0, savedScroll);
+        }
+    }, 100);
+});
 });
 
 // Открытие модалки через плавающую кнопку
 document.body.addEventListener("click", (e) => {
-    const btn = e.target.closest("#floating-add-btn");
-    if (!btn) return;
+const btn = e.target.closest("#floating-add-btn");
+if (!btn) return;
 
-    if (btn.dataset.page === "students") {
-        openModal('create-student-modal');
-    }
+if (btn.dataset.page === "students") {
+    openModal('create-student-modal');
+}
 });
 
 // ------ ЗАМЕНИТЬ СТАРЫЕ ФУНКЦИИ/ОБРАБОТЧИКИ НА ЭТО: ------
+// Универсальная функция для кнопки "Сегодня" — работает для всех views
+// Обновляем handleTodayButton() — используем новую smooth-функцию для list
+function handleTodayButton() {
+const activeView = document.querySelector('.schedule-view.active');
+if (!activeView) return;
 
+const mode = activeView.id.replace('schedule-', '').replace('-view', '');
+
+switch (mode) {
+    case 'list':
+        scrollToToday();  // Теперь smooth!
+        break;
+    case 'table':
+        goToday();  // Ваш оригинальный — рендер недели (уже smooth)
+        break;
+    case 'calendar':
+        showToast('Переход к сегодняшнему дню в календаре (в разработке)');
+        break;
+    default:
+        console.warn('Неизвестный режим:', mode);
+}
+}
 // Получаем элементы один раз
 const overlay = document.getElementById("overlay");
 
 // Общая функция открытия модалки по ID
 function openModal(modalId) {
-    const modalEl = document.getElementById(modalId);
-    if (!modalEl) return;
-    if (document.querySelector('.bottom-sheet.open')) return; // Предотвращаем открытие нескольких модалок
+const modalEl = document.getElementById(modalId);
+if (!modalEl) return;
+if (document.querySelector('.bottom-sheet.open')) return; // Предотвращаем открытие нескольких модалок
 
-    modalEl.classList.add("open");
-    overlay.classList.add("show");
-    document.body.style.overflow = "hidden";
+modalEl.classList.add("open");
+overlay.classList.add("show");
+document.body.style.overflow = "hidden";
 
-    // Скрыть плавающую кнопку
-    removeFloatingAddButton();
+// Скрыть плавающую кнопку
+removeFloatingAddButton();
 
-    // Сброс transform
-    modalEl.style.transform = "translateY(0)";
+// Сброс transform
+modalEl.style.transform = "translateY(0)";
 
-    // Для модалки расписания: заполняем select учениками (ДОРАБОТКА)
+// Для модалки расписания: заполняем select учениками (ДОРАБОТКА)
 
 }
 
 // Общая функция закрытия модалки по ID
 function closeModal(modalId) {
-    const modalEl = document.getElementById(modalId);
-    if (!modalEl) return;
+const modalEl = document.getElementById(modalId);
+if (!modalEl) return;
+modalEl.classList.remove("open");
+overlay.classList.remove("show");
+overlay.style.pointerEvents = 'none'; // Сразу отключить события на оверлее
+document.body.style.overflow = ""; // Сброс overflow сразу
+modalEl.style.transform = "";
 
-    modalEl.classList.remove("open");
-    overlay.classList.remove("show");
-    overlay.style.pointerEvents = 'none'; // Сразу отключить события на оверлее
-    document.body.style.overflow = ""; // Сброс overflow сразу
+// Сброс для edit-modal (дата, время, заметки — ученик не трогаем)
+if (modalId === 'edit-lesson-modal') {
+    document.getElementById('edit-lesson-date').value = '';
+    document.getElementById('edit-lesson-start-picker').textContent = '12:00';
+    document.getElementById('edit-lesson-start-input').value = '12:00';
+    document.getElementById('edit-lesson-end-picker').textContent = '13:00';
+    document.getElementById('edit-lesson-end-input').value = '13:00';
+    document.getElementById('edit-lesson-notes').value = '';
+    document.getElementById('edit-lesson-recurring').checked = false;
+    delete document.getElementById('edit-lesson-modal').dataset.lessonId;
+}
 
-    modalEl.style.transform = "";
-    // resetAllModals();
-    // Показать кнопку обратно (с задержкой для анимации)
-    setTimeout(() => {
-        if (["students", "schedule"].includes(navigation.currentPage)) {
-            createFloatingAddButton(navigation.currentPage);
-        }
-        overlay.style.pointerEvents = ''; // Восстановить после анимации
-    }, 250); // 250ms для opacity transition
+// resetAllModals();  // Если у тебя есть эта функция — оставь, иначе удали
+// Показать кнопку обратно (с задержкой для анимации)
+setTimeout(() => {
+    if (["students", "schedule"].includes(navigation.currentPage)) {
+        createFloatingAddButton(navigation.currentPage);
+    }
+    overlay.style.pointerEvents = ''; // Восстановить после анимации
+}, 250); // 250ms для opacity transition
 }
 
 // Функция для прикрепления swipe/drag handlers к любой модалке
 function attachSwipeHandlers(modalEl) {
-    if (!modalEl) return;
+if (!modalEl) return;
 
-    let startY = 0;
-    let currentY = 0;
-    let isDragging = false;
+let startY = 0;
+let currentY = 0;
+let isDragging = false;
 
-    const SWIPE_CLOSE = 120;
+const SWIPE_CLOSE = 120;
 
-    // Touch start
-    modalEl.addEventListener("touchstart", (e) => {
-        isDragging = true;
-        startY = e.touches[0].clientY;
-        currentY = 0;
-        modalEl.style.transition = "none";
-    }, { passive: true });
+// Touch start
+modalEl.addEventListener("touchstart", (e) => {
+    isDragging = true;
+    startY = e.touches[0].clientY;
+    currentY = 0;
+    modalEl.style.transition = "none";
+}, { passive: true });
 
-    // Touch move — КРИТИЧНО ДЛЯ SAFARI
-    modalEl.addEventListener("touchmove", (e) => {
-        if (!isDragging) return;
+// Touch move — КРИТИЧНО ДЛЯ SAFARI
+modalEl.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
 
-        currentY = e.touches[0].clientY - startY;
+    currentY = e.touches[0].clientY - startY;
 
-        // Разрешаем только тянуть вниз (currentY > 0)
-        if (currentY > 0) {
-            e.preventDefault(); // ← Именно это убивает баг с двойным тапом в Safari
-            modalEl.style.transform = `translateY(${currentY}px)`;
-        }
-    }, { passive: false }); // ← Обязательно false!
+    // Разрешаем только тянуть вниз (currentY > 0)
+    if (currentY > 0) {
+        e.preventDefault(); // ← Именно это убивает баг с двойным тапом в Safari
+        modalEl.style.transform = `translateY(${currentY}px)`;
+    }
+}, { passive: false }); // ← Обязательно false!
 
-    // Touch end
-    modalEl.addEventListener("touchend", () => {
-        if (!isDragging) return;
-        isDragging = false;
+// Touch end
+modalEl.addEventListener("touchend", () => {
+    if (!isDragging) return;
+    isDragging = false;
 
-        modalEl.style.transition = "transform 0.25s ease-in-out";
+    modalEl.style.transition = "transform 0.25s ease-in-out";
 
-        if (currentY > SWIPE_CLOSE) {
-            closeModal(modalEl.id);
-        } else {
-            modalEl.style.transform = "translateY(0)";
-        }
-    }, { passive: true });
+    if (currentY > SWIPE_CLOSE) {
+        closeModal(modalEl.id);
+    } else {
+        modalEl.style.transform = "translateY(0)";
+    }
+}, { passive: true });
 
-    // Mouse drag (для десктопа) — без изменений
-    let mouseDragging = false;
-    modalEl.addEventListener("mousedown", (e) => {
-        if (!modalEl.classList.contains("open")) return;
-        mouseDragging = true;
-        startY = e.clientY;
-        modalEl.style.transition = "none";
-    });
+// Mouse drag (для десктопа) — без изменений
+let mouseDragging = false;
+modalEl.addEventListener("mousedown", (e) => {
+    if (!modalEl.classList.contains("open")) return;
+    mouseDragging = true;
+    startY = e.clientY;
+    modalEl.style.transition = "none";
+});
 
-    window.addEventListener("mousemove", (e) => {
-        if (!mouseDragging) return;
-        currentY = e.clientY - startY;
-        if (currentY > 0) {
-            modalEl.style.transform = `translateY(${currentY}px)`;
-        }
-    });
+window.addEventListener("mousemove", (e) => {
+    if (!mouseDragging) return;
+    currentY = e.clientY - startY;
+    if (currentY > 0) {
+        modalEl.style.transform = `translateY(${currentY}px)`;
+    }
+});
 
-    window.addEventListener("mouseup", () => {
-        if (!mouseDragging) return;
-        mouseDragging = false;
-        modalEl.style.transition = "transform 0.25s ease-in-out";
+window.addEventListener("mouseup", () => {
+    if (!mouseDragging) return;
+    mouseDragging = false;
+    modalEl.style.transition = "transform 0.25s ease-in-out";
 
-        if (currentY > SWIPE_CLOSE) {
-            closeModal(modalEl.id);
-        } else {
-            modalEl.style.transform = "translateY(0)";
-        }
-    });
+    if (currentY > SWIPE_CLOSE) {
+        closeModal(modalEl.id);
+    } else {
+        modalEl.style.transform = "translateY(0)";
+    }
+});
 }
 attachSwipeHandlers(document.getElementById("create-student-modal"));
 attachSwipeHandlers(document.getElementById("create-lesson-modal"));
+attachSwipeHandlers(document.getElementById("edit-lesson-modal"));
 
 // Крестик закрытия для обеих модалок
 document.querySelectorAll('.sheet-close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', (e) => {
-        const modalEl = e.target.closest('.bottom-sheet');
-        if (modalEl) closeModal(modalEl.id);
-    });
+closeBtn.addEventListener('click', (e) => {
+    const modalEl = e.target.closest('.bottom-sheet');
+    if (modalEl) closeModal(modalEl.id);
+});
 });
 
 // Overlay: закрывает активную модалку
 overlay.addEventListener("click", () => {
-    const openModalEl = document.querySelector('.bottom-sheet.open');
-    if (openModalEl) closeModal(openModalEl.id);
+const openModalEl = document.querySelector('.bottom-sheet.open');
+if (openModalEl) closeModal(openModalEl.id);
 });
 
 // ----- КНОПКА СОХРАНЕНИЯ (если нужно добавить логику создания) -----
 // Пока это заглушки. Добавьте fetch в API здесь.
 // ===== СОЗДАНИЕ НОВОГО УЧЕНИКА =====
 document.getElementById('create-student-btn').addEventListener('click', async () => {
-    // Собираем данные из формы
-    const name = document.getElementById('student-name-input').value.trim();
-    const grade = document.getElementById('student-age-input').value.trim(); // у тебя сейчас "Класс"
-    const contact = document.getElementById('student-phone-input').value.trim();
-    const info = document.getElementById('student-info-input').value.trim();
+// Собираем данные из формы
+const name = document.getElementById('student-name-input').value.trim();
+const grade = document.getElementById('student-age-input').value.trim(); // у тебя сейчас "Класс"
+const contact = document.getElementById('student-phone-input').value.trim();
+const info = document.getElementById('student-info-input').value.trim();
 
-    // Простая валидация
-    if (!name) {
-        alert('Введите имя ученика');
-        return;
+// Простая валидация
+if (!name) {
+    alert('Введите имя ученика');
+    return;
+}
+if (!grade || isNaN(grade) || grade < 1 || grade > 11) {
+    alert('Укажите корректный класс (1–11)');
+    return;
+}
+
+const newStudent = {
+    name: name,
+    grade: parseInt(grade),
+    contacts: contact || null,
+    descriptions: info || null
+};
+
+try {
+    const response = await apiClient( '/students/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newStudent)
+    });
+
+    if (response.ok) {
+        const created = await response.json();
+        console.log('Ученик создан:', created);
+
+        // Закрываем модалку
+        closeModal('create-student-modal');
+
+        // Очищаем форму
+        document.getElementById('student-name-input').value = '';
+        document.getElementById('student-age-input').value = '';
+        document.getElementById('student-phone-input').value = '';
+        document.getElementById('student-info-input').value = '';
+
+        // Обновляем список учеников
+        await loadData();
+
+        // Красивое уведомление
+        showToast('Ученик успешно добавлен!');
+
+    } else {
+        const error = await response.text();
+        alert('Ошибка сервера: ' + error);
     }
-    if (!grade || isNaN(grade) || grade < 1 || grade > 11) {
-        alert('Укажите корректный класс (1–11)');
-        return;
-    }
-
-    const newStudent = {
-        name: name,
-        grade: parseInt(grade),
-        contacts: contact || null,
-        descriptions: info || null
-    };
-
-    try {
-        const response = await fetch(API + '/students/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(newStudent)
-        });
-
-        if (response.ok) {
-            const created = await response.json();
-            console.log('Ученик создан:', created);
-
-            // Закрываем модалку
-            closeModal('create-student-modal');
-
-            // Очищаем форму
-            document.getElementById('student-name-input').value = '';
-            document.getElementById('student-age-input').value = '';
-            document.getElementById('student-phone-input').value = '';
-            document.getElementById('student-info-input').value = '';
-
-            // Обновляем список учеников
-            await loadData();
-
-            // Красивое уведомление
-            showToast('Ученик успешно добавлен!');
-
-        } else {
-            const error = await response.text();
-            alert('Ошибка сервера: ' + error);
-        }
-    } catch (err) {
-        console.error('Ошибка сети:', err);
-        alert('Нет связи с сервером. Проверьте интернет.');
-    }
+} catch (err) {
+    console.error('Ошибка сети:', err);
+    alert('Нет связи с сервером. Проверьте интернет.');
+}
 });
 
 document.getElementById('create-lesson-btn').addEventListener('click', async () => {
-    const studentId = document.getElementById('lesson-student-id').value;
-    const date = document.getElementById('lesson-date').value;           // ← НОВАЯ СТРОКА
-    const begin = document.getElementById('lesson-start-input').value;
-    const end = document.getElementById('lesson-end-input').value;
-    const notes = document.getElementById('lesson-notes')?.value.trim() || null;
+const studentId = document.getElementById('lesson-student-id').value;
+const date = document.getElementById('lesson-date').value;           // ← НОВАЯ СТРОКА
+const begin = document.getElementById('lesson-start-input').value;
+const end = document.getElementById('lesson-end-input').value;
+const notes = document.getElementById('lesson-notes')?.value.trim() || null;
 
-    if (!studentId || !date || !begin || !end) {
-        alert("Заполните все поля: ученик, дата, время начала и конца");
-        return;
+if (!studentId || !date || !begin || !end) {
+    alert("Заполните все поля: ученик, дата, время начала и конца");
+    return;
+}
+
+const payload = {
+    student_id: parseInt(studentId),
+    date: date,           // ← теперь правильная дата
+    begin: begin,         // "14:30"
+    end: end,             // "15:30"
+    notes: notes,
+    recurring: false
+};
+
+console.log("Отправляем на сервер:", payload);
+
+try {
+    const res = await apiClient( "/lessons/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        closeModal('create-lesson-modal');
+        document.getElementById('lesson-student-display').textContent = 'Выберите ученика';
+document.getElementById('lesson-student-id').value = '';
+document.getElementById('lesson-student-name').value = '';
+
+document.getElementById('lesson-date').value = '';
+
+// Время начала и конца
+document.getElementById('lesson-start-picker').textContent = '12:00';
+document.getElementById('lesson-start-input').value = '12:00';
+document.getElementById('lesson-end-picker').textContent = '13:00';
+document.getElementById('lesson-end-input').value = '13:00';
+
+document.getElementById('lesson-notes').value = '';
+document.getElementById('lesson-recurring').checked = false;
+
+// Сброс флагов
+selectingStudentForLesson = false;
+        showToast("Занятие добавлено!");
+        loadData();   
+        loadSchedule();                  // ← обновляем расписание
+    } else {
+        const err = await res.text();
+        alert("Ошибка сервера: " + err);
     }
+} catch (e) {
+    console.error(e);
+    alert("Нет связи с сервером");
+}
+});
 
-    const payload = {
-        student_id: parseInt(studentId),
-        date: date,           // ← теперь правильная дата
-        begin: begin,         // "14:30"
-        end: end,             // "15:30"
-        notes: notes,
-        recurring: false
-    };
+document.getElementById('edit-lesson-btn').addEventListener('click', async () => {
+const lessonId = document.getElementById('edit-lesson-modal').dataset.lessonId;
+const studentId = document.getElementById('edit-lesson-student-id').value;
+const date = document.getElementById('edit-lesson-date').value;
+const begin = document.getElementById('edit-lesson-start-input').value;
+const end = document.getElementById('edit-lesson-end-input').value;
+const notes = document.getElementById('edit-lesson-notes')?.value.trim() || null;
+const recurring = document.getElementById('edit-lesson-recurring').checked;
 
-    console.log("Отправляем на сервер:", payload);
+if (!studentId || !date || !begin || !end) {
+    alert("Заполните все обязательные поля");
+    return;
+}
 
-    try {
-        const res = await fetch(API + "/lessons/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+const payload = {
+    student_id: parseInt(studentId),
+    date: date,
+    begin: begin,
+    end: end,
+    notes: notes,
+    recurring: recurring
+};
 
-        if (res.ok) {
-            closeModal('create-lesson-modal');
-            document.getElementById('lesson-student-display').textContent = 'Выберите ученика';
-    document.getElementById('lesson-student-id').value = '';
-    document.getElementById('lesson-student-name').value = '';
-    
-    document.getElementById('lesson-date').value = '';
-    
-    // Время начала и конца
-    document.getElementById('lesson-start-picker').textContent = '12:00';
-    document.getElementById('lesson-start-input').value = '12:00';
-    document.getElementById('lesson-end-picker').textContent = '13:00';
-    document.getElementById('lesson-end-input').value = '13:00';
-    
-    document.getElementById('lesson-notes').value = '';
-    document.getElementById('lesson-recurring').checked = false;
+try {
+    const res = await fetch(`${API}/lessons/${lessonId}/`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
 
-    // Сброс флагов
-    selectingStudentForLesson = false;
-            showToast("Занятие добавлено!");
-            loadData();   
-            loadSchedule();                  // ← обновляем расписание
-        } else {
-            const err = await res.text();
-            alert("Ошибка сервера: " + err);
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Нет связи с сервером");
+    if (res.ok) {
+        closeModal('edit-lesson-modal');
+        showToast("Занятие обновлено!");
+        loadData();  // Обновляем данные
+        loadSchedule();  // Перерендерим расписание
+    } else {
+        const err = await res.text();
+        alert("Ошибка сервера: " + err);
     }
+} catch (e) {
+    console.error(e);
+    alert("Нет связи с сервером");
+}
 });
 
 // Глобальный флаг для режима выбора ученика
@@ -2625,154 +2974,155 @@ let previousPage = null; // Для возврата после выбора
 
 // Обработчик клика на поле "Ученик" — переход к студентам
 document.getElementById('lesson-student-picker').addEventListener('click', () => {
-    selectingStudentForLesson = true;
-    previousPage = navigation.currentPage; // Запоминаем текущую страницу (schedule)
-    closeModal('create-lesson-modal'); // Закрываем модалку временно
-    navigation.navigateTo('students'); // Переходим к ученикам
+selectingStudentForLesson = true;
+previousPage = navigation.currentPage; // Запоминаем текущую страницу (schedule)
+closeModal('create-lesson-modal'); // Закрываем модалку временно
+navigation.navigateTo('students'); // Переходим к ученикам
 });
 
 // ОТПРАВКА НОВОГО ЗАНЯТИЯ (одноразовое или еженедельное)
 document.getElementById('create-lesson-btn').addEventListener('click', async () => {
-    const student_id = document.getElementById('lesson-student-id').value;
-    // const studentName = document.getElementById('lesson-student-name').value;
-    const date = document.getElementById('lesson-weekday').value;
-    const begin = document.getElementById('lesson-start-input').value;
-    const end = document.getElementById('lesson-end-input').value;
-    const recurring = document.getElementById('lesson-recurring').checked;
+const student_id = document.getElementById('lesson-student-id').value;
+// const studentName = document.getElementById('lesson-student-name').value;
+const date = document.getElementById('lesson-weekday').value;
+const begin = document.getElementById('lesson-start-input').value;
+const end = document.getElementById('lesson-end-input').value;
+const recurring = document.getElementById('lesson-recurring').checked;
 
-    if (!studentId || !start || !end) {
-        alert("Заполните все поля");
-        return;
+if (!studentId || !start || !end) {
+    alert("Заполните все поля");
+    return;
+}
+
+const lessonData = {
+    student_id: parseInt(student_id),
+    // student_name: studentName,
+    date: parseInt(date),
+    begin: begin,
+    end: end,
+    recurring: recurring
+};
+
+try {
+    const response = await apiClient( '/lessons/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lessonData)
+    });
+
+    if (response.ok) {
+        closeModal('create-lesson-modal');
+        document.getElementById('lesson-student-display').textContent = 'Выберите ученика';
+        document.getElementById('lesson-student-id').value = '';
+        document.getElementById('lesson-student-name').value = '';
+        
+        document.getElementById('lesson-date').value = '';
+        
+        // Время начала и конца
+        document.getElementById('lesson-start-picker').textContent = '12:00';
+        document.getElementById('lesson-start-input').value = '12:00';
+        document.getElementById('lesson-end-picker').textContent = '13:00';
+        document.getElementById('lesson-end-input').value = '13:00';
+        
+        document.getElementById('lesson-notes').value = '';
+        document.getElementById('lesson-recurring').checked = false;
+
+// Сброс флагов
+        selectingStudentForLesson = false;
+        loadData(); // Обновляем расписание и дашборд
+        alert("Занятие создано!");
+    } else {
+        alert("Ошибка создания занятия");
     }
-
-    const lessonData = {
-        student_id: parseInt(student_id),
-        // student_name: studentName,
-        date: parseInt(date),
-        begin: begin,
-        end: end,
-        recurring: recurring
-    };
-
-    try {
-        const response = await fetch(API + '/lessons/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(lessonData)
-        });
-
-        if (response.ok) {
-            closeModal('create-lesson-modal');
-            document.getElementById('lesson-student-display').textContent = 'Выберите ученика';
-            document.getElementById('lesson-student-id').value = '';
-            document.getElementById('lesson-student-name').value = '';
-            
-            document.getElementById('lesson-date').value = '';
-            
-            // Время начала и конца
-            document.getElementById('lesson-start-picker').textContent = '12:00';
-            document.getElementById('lesson-start-input').value = '12:00';
-            document.getElementById('lesson-end-picker').textContent = '13:00';
-            document.getElementById('lesson-end-input').value = '13:00';
-            
-            document.getElementById('lesson-notes').value = '';
-            document.getElementById('lesson-recurring').checked = false;
-
-    // Сброс флагов
-            selectingStudentForLesson = false;
-            loadData(); // Обновляем расписание и дашборд
-            alert("Занятие создано!");
-        } else {
-            alert("Ошибка создания занятия");
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Нет связи с сервером");
-    }
+} catch (err) {
+    console.error(err);
+    alert("Нет связи с сервером");
+}
 });
 // ГЛОБАЛЬНЫЙ КЛИК ПО ЛЮБОЙ КАРТОЧКЕ УЧЕНИКА — РАБОТАЕТ ВСЕГДА
 document.addEventListener('click', (e) => {
-    const card = e.target.closest('.student-card');
-    if (!card) return;
+const card = e.target.closest('.student-card');
+if (!card) return;
 
-    const id = card.dataset.id;
+const id = card.dataset.id;
 
-    if (selectingStudentForLesson) {
-        e.preventDefault();
-        e.stopPropagation();        document.getElementById('lesson-student-id').value = '';
-            document.getElementById('lesson-student-name').value = '';
-            
-            document.getElementById('lesson-date').value = '';
-            
-            // Время начала и конца
-            document.getElementById('lesson-start-picker').textContent = '12:00';
-            document.getElementById('lesson-start-input').value = '12:00';
-            document.getElementById('lesson-end-picker').textContent = '13:00';
-            document.getElementById('lesson-end-input').value = '13:00';
-            
-            document.getElementById('lesson-notes').value = '';
-            document.getElementById('lesson-recurring').checked = false;
+if (selectingStudentForLesson) {
+    e.preventDefault();
+    e.stopPropagation();        document.getElementById('lesson-student-id').value = '';
+        document.getElementById('lesson-student-name').value = '';
+        
+        document.getElementById('lesson-date').value = '';
+        
+        // Время начала и конца
+        document.getElementById('lesson-start-picker').textContent = '12:00';
+        document.getElementById('lesson-start-input').value = '12:00';
+        document.getElementById('lesson-end-picker').textContent = '13:00';
+        document.getElementById('lesson-end-input').value = '13:00';
+        
+        document.getElementById('lesson-notes').value = '';
+        document.getElementById('lesson-recurring').checked = false;
 
 
-        const name = card.querySelector('.student-name').textContent;
+    const name = card.querySelector('.student-name').textContent;
 
-        document.getElementById('lesson-student-display').textContent = name;
-        document.getElementById('lesson-student-id').value = id;
-        document.getElementById('lesson-student-name').value = name;
+    document.getElementById('lesson-student-display').textContent = name;
+    document.getElementById('lesson-student-id').value = id;
+    document.getElementById('lesson-student-name').value = name;
 
-        selectingStudentForLesson = false;
-        navigation.navigateTo('schedule');
-        setTimeout(() => openModal('create-lesson-modal'), 150);
-    } else {
-        openStudentSidebar(id);
-    }
+    selectingStudentForLesson = false;
+    navigation.navigateTo('schedule');
+    setTimeout(() => openModal('create-lesson-modal'), 150);
+} else {
+    openStudentSidebar(id);
+}
 });
 
 // Красивое всплывающее уведомление в стиле iOS
 function showToast(message) {
-    const oldToast = document.getElementById('toast');
-    if (oldToast) oldToast.remove();
+const oldToast = document.getElementById('toast');
+if (oldToast) oldToast.remove();
 
-    const toast = document.createElement('div');
-    toast.id = 'toast';
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 100px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.8);
-        color: white;
-        padding: 14px 24px;
-        border-radius: 12px;
-        font-size: 15px;
-        z-index: 10000;
-        animation: toastFade 3s forwards;
-        pointer-events: none;
-    `;
+const toast = document.createElement('div');
+toast.id = 'toast';
+toast.textContent = message;
+toast.style.cssText = `
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    z-index: 10000;
+    animation: toastFade 3s forwards;
+    pointer-events: none;
+`;
 
-    document.body.appendChild(toast);
+document.body.appendChild(toast);
 
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes toastFade {
-            0%, 100% { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            15%, 85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-    `;
-    document.head.appendChild(style);
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes toastFade {
+        0%, 100% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+        15%, 85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+`;
+document.head.appendChild(style);
 
-    setTimeout(() => {
-        if (toast && toast.parentNode) {
-            toast.remove();
-            style.remove();
-        }
-    }, 3000);
+setTimeout(() => {
+    if (toast && toast.parentNode) {
+        toast.remove();
+        style.remove();
+    }
+}, 3000);
 }
 
 // Показать/скрыть меню
 function toggleLessonMenu(e, lessonId) {
     e.stopPropagation();
+    e.preventDefault(); // Добавлено для предотвращения конфликтов
     document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
         if (menu.id !== `dropdown-${lessonId}`) menu.classList.remove('show');
     });
@@ -2781,153 +3131,180 @@ function toggleLessonMenu(e, lessonId) {
 }
 
 // Закрывать меню при клике вне
-document.addEventListener('click', () => {
-    document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
-        menu.classList.remove('show');
-    });
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.lesson-actions')) {
+        document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    }
 });
 
 // Редактировать занятие
 function editLesson(id) {
-    alert(`Редактирование занятия ID: ${id} — пока заглушка`);
-    // Здесь потом откроешь модалку с предзаполненными данными
+const lesson = appData.schedule.find(l => l.id === id);
+if (!lesson) {
+    alert('Занятие не найдено');
+    return;
+}
+
+// Заполняем поля (ученик — только отображение, без смены)
+document.getElementById('edit-lesson-student-id').value = lesson.student_id;  // Для PUT
+document.getElementById('edit-lesson-student-display').textContent = lesson.student_name || lesson.name || 'Неизвестный ученик';
+
+document.getElementById('edit-lesson-date').value = lesson.date;
+document.getElementById('edit-lesson-start-picker').textContent = lesson.begin;
+document.getElementById('edit-lesson-start-input').value = lesson.begin;
+document.getElementById('edit-lesson-end-picker').textContent = lesson.end;
+document.getElementById('edit-lesson-end-input').value = lesson.end;
+document.getElementById('edit-lesson-notes').value = lesson.notes || '';
+document.getElementById('edit-lesson-recurring').checked = lesson.recurring || false;
+
+// Сохраняем ID занятия для сохранения
+document.getElementById('edit-lesson-modal').dataset.lessonId = id;
+
+// Закрываем меню
+document.querySelectorAll('.lesson-dropdown.show').forEach(menu => menu.classList.remove('show'));
+
+openModal('edit-lesson-modal');
 }
 
 // Удалить занятие
 async function deleteLesson(id) {
-    if (!confirm("Удалить это занятие?")) return;
+if (!confirm("Удалить это занятие?")) return;
 
-    try {
-        const res = await fetch(`${API}/lessons/${id}/`, { method: 'DELETE' });
-        if (res.ok) {
-            loadData();
-            showToast("Занятие удалено");
-        } else {
-            alert("Ошибка удаления");
-        }
-    } catch (e) {
-        alert("Нет связи с сервером");
+try {
+    const res = await fetch(`${API}/lessons/${id}/`, { method: 'DELETE' });
+    if (res.ok) {
+        loadData();  // Обновляем данные
+        loadSchedule();  // Перерендерим расписание
+        showToast("Занятие удалено");
+    } else {
+        alert("Ошибка удаления");
     }
+} catch (e) {
+    alert("Нет связи с сервером");
+}
 }
 // ===== ОБРАБОТКА КНОПКИ РЕДАКТИРОВАНИЯ УЧЕНИКА (✎) =====
 
 // Переход в режим редактирования
 document.getElementById("sidebar-edit-btn").addEventListener("click", () => {
-    document.getElementById("edit-buttons").style.display = "flex";
+document.getElementById("edit-buttons").style.display = "flex";
 
-    // превращаем значения в input'ы с красивыми стилями
-    const name = document.getElementById("sidebar-name").textContent;
-    const grade = document.getElementById("sidebar-age").textContent.replace(/\D/g, "");
-    const info = document.getElementById("sidebar-info").textContent;
-    const phone = document.getElementById("sidebar-phone").textContent;
+// превращаем значения в input'ы с красивыми стилями
+const name = document.getElementById("sidebar-name").textContent;
+const grade = document.getElementById("sidebar-age").textContent.replace(/\D/g, "");
+const info = document.getElementById("sidebar-info").textContent;
+const phone = document.getElementById("sidebar-phone").textContent;
 
-    document.getElementById("sidebar-name").innerHTML =
-        `<input id="edit-name" class="custom-input" value="${name}" style="width:100%;">`;
+document.getElementById("sidebar-name").innerHTML =
+    `<input id="edit-name" class="custom-input" value="${name}" style="width:100%;">`;
 
-    document.getElementById("sidebar-age").innerHTML =
-        `<input id="edit-grade" type="number" class="custom-input" value="${grade || ''}" min="1" max="11" style="width:100%;">`;
+document.getElementById("sidebar-age").innerHTML =
+    `<input id="edit-grade" type="number" class="custom-input" value="${grade || ''}" min="1" max="11" style="width:100%;">`;
 
-    document.getElementById("sidebar-info").innerHTML =
-        `<textarea id="edit-info" class="custom-textarea" style="width:100%; min-height:80px;">${info}</textarea>`;
+document.getElementById("sidebar-info").innerHTML =
+    `<textarea id="edit-info" class="custom-textarea" style="width:100%; min-height:80px;">${info}</textarea>`;
 
-    document.getElementById("sidebar-phone").innerHTML =
-        `<input id="edit-phone" class="custom-input" value="${phone}" style="width:100%;">`;
+document.getElementById("sidebar-phone").innerHTML =
+    `<input id="edit-phone" class="custom-input" value="${phone}" style="width:100%;">`;
 
-    // ← ДОБАВИТЬ: скрываем кнопку редактирования в режиме редактирования
-    document.getElementById("sidebar-edit-btn").style.display = "none";
+// ← ДОБАВИТЬ: скрываем кнопку редактирования в режиме редактирования
+document.getElementById("sidebar-edit-btn").style.display = "none";
 }); 
 
 // ===== КНОПКА ОТМЕНА =====
 document.getElementById("edit-cancel-btn").addEventListener("click", () => {
-    document.getElementById("edit-buttons").style.display = "none";
-    const openId = document.getElementById("student-sidebar").dataset.studentId;  // ← ЗАМЕНИТЬ: используем dataset
-    document.getElementById("sidebar-edit-btn").style.display = "block";
-    if (openId) openStudentSidebar(openId);  // просто заново открываем, поля вернутся к тексту
+document.getElementById("edit-buttons").style.display = "none";
+const openId = document.getElementById("student-sidebar").dataset.studentId;  // ← ЗАМЕНИТЬ: используем dataset
+document.getElementById("sidebar-edit-btn").style.display = "block";
+if (openId) openStudentSidebar(openId);  // просто заново открываем, поля вернутся к тексту
 });
 
 
 // ===== КНОПКА СОХРАНИТЬ =====
 document.getElementById("edit-save-btn").addEventListener("click", async () => {
-    const id = document.getElementById("student-sidebar").dataset.studentId;  // ← ЗАМЕНИТЬ: используем dataset
-    if (!id) {
-        alert("Ошибка: ID ученика не найден");
-        return;
+const id = document.getElementById("student-sidebar").dataset.studentId;  // ← ЗАМЕНИТЬ: используем dataset
+if (!id) {
+    alert("Ошибка: ID ученика не найден");
+    return;
+}
+
+const name = document.getElementById("edit-name").value.trim();
+const grade = parseInt(document.getElementById("edit-grade").value);
+const descriptions = document.getElementById("edit-info").value.trim();
+const contacts = document.getElementById("edit-phone").value.trim();
+
+// Простая валидация
+if (!name) {
+    alert("Введите имя");
+    return;
+}
+if (isNaN(grade) || grade < 1 || grade > 11) {
+    alert("Класс должен быть от 1 до 11");
+    return;
+}
+
+const payload = {
+    name: name,
+    grade: grade,
+    descriptions: descriptions || null,
+    contacts: contacts || null
+};
+
+try {
+    const response = await fetch(`${API}/students/update/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        throw new Error("Ошибка сервера");
     }
 
-    const name = document.getElementById("edit-name").value.trim();
-    const grade = parseInt(document.getElementById("edit-grade").value);
-    const descriptions = document.getElementById("edit-info").value.trim();
-    const contacts = document.getElementById("edit-phone").value.trim();
-
-    // Простая валидация
-    if (!name) {
-        alert("Введите имя");
-        return;
-    }
-    if (isNaN(grade) || grade < 1 || grade > 11) {
-        alert("Класс должен быть от 1 до 11");
-        return;
-    }
-
-    const payload = {
-        name: name,
-        grade: grade,
-        descriptions: descriptions || null,
-        contacts: contacts || null
-    };
-
-    try {
-        const response = await fetch(`${API}/students/update/${id}`, {
-            method: "PUT",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            throw new Error("Ошибка сервера");
-        }
-
-        showToast("Изменения сохранены");
-        document.getElementById("sidebar-edit-btn").style.display = "block";
-        document.getElementById("edit-buttons").style.display = "none";
-        await loadData();  // обновляем список учеников
-        openStudentSidebar(id);  // обновляем панель (поля вернутся к тексту)
-    } catch (err) {
-        alert("Ошибка сохранения: " + err.message);
-    }
+    showToast("Изменения сохранены");
+    document.getElementById("sidebar-edit-btn").style.display = "block";
+    document.getElementById("edit-buttons").style.display = "none";
+    await loadData();  // обновляем список учеников
+    openStudentSidebar(id);  // обновляем панель (поля вернутся к тексту)
+} catch (err) {
+    alert("Ошибка сохранения: " + err.message);
+}
 });
 // ===== КНОПКА УДАЛЕНИЯ УЧЕНИКА =====
 document.getElementById("delete-student-btn").addEventListener("click", async () => {
-    const sidebar = document.getElementById("student-sidebar");
-    const id = sidebar.dataset.studentId;
-    if (!id) {
-        alert("Ошибка: ID ученика не найден");
-        return;
+const sidebar = document.getElementById("student-sidebar");
+const id = sidebar.dataset.studentId;
+if (!id) {
+    alert("Ошибка: ID ученика не найден");
+    return;
+}
+
+if (!confirm("Вы уверены, что хотите удалить этого ученика? Это действие нельзя отменить.")) {
+    return;
+}
+
+try {
+    const response = await fetch(`${API}/students/${id}/`, {  // ← предположим, что эндпоинт для DELETE — /students/{id}/ (как в deleteLesson)
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        throw new Error("Ошибка сервера");
     }
 
-    if (!confirm("Вы уверены, что хотите удалить этого ученика? Это действие нельзя отменить.")) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API}/students/${id}/`, {  // ← предположим, что эндпоинт для DELETE — /students/{id}/ (как в deleteLesson)
-            method: "DELETE"
-        });
-
-        if (!response.ok) {
-            throw new Error("Ошибка сервера");
-        }
-
-        showToast("Ученик удалён");
-        sidebar.classList.remove("open");  // Закрываем сайдбар
-        await loadData();  // Обновляем список учеников и дашборд
-    } catch (err) {
-        alert("Ошибка удаления: " + err.message);
-    }
+    showToast("Ученик удалён");
+    sidebar.classList.remove("open");  // Закрываем сайдбар
+    await loadData();  // Обновляем список учеников и дашборд
+} catch (err) {
+    alert("Ошибка удаления: " + err.message);
+}
 });
 
 // Интеграция логики недельной сетки (модернизировано: динамические недели из appData.schedule, кэширование данных, минимум DOM-операций)
-let currentWeekStart = new Date('2025-12-01'); // Начальная дата (как в исходном коде)
+let currentWeekStart = new Date();
+currentWeekStart.setDate(currentWeekStart.getDate() - ((currentWeekStart.getDay() + 6) % 7));
 const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
 function wKey(d) { return d.toISOString().split('T')[0]; } // Ключ даты
@@ -2936,201 +3313,204 @@ function wKey(d) { return d.toISOString().split('T')[0]; } // Ключ даты
 let cachedLessonsByDate = null;
 
 function getLessonsByDate() {
-    if (cachedLessonsByDate) return cachedLessonsByDate; // Используем кэш
-    
-    cachedLessonsByDate = {};
-    appData.schedule.forEach(lesson => {
-        const date = lesson.date;
-        if (!cachedLessonsByDate[date]) {
-            cachedLessonsByDate[date] = [];
-        }
-        cachedLessonsByDate[date].push(lesson);
-    });
-    return cachedLessonsByDate;
+if (cachedLessonsByDate) return cachedLessonsByDate; // Используем кэш
+
+cachedLessonsByDate = {};
+appData.schedule.forEach(lesson => {
+    const date = lesson.date;
+    if (!cachedLessonsByDate[date]) {
+        cachedLessonsByDate[date] = [];
+    }
+    cachedLessonsByDate[date].push(lesson);
+});
+return cachedLessonsByDate;
 }
 
 // Генерация доступных недель динамически на основе дат в schedule
 function getAvailableWeeks() {
-    const dates = Object.keys(getLessonsByDate()).sort();
-    if (dates.length === 0) return []; // Нет данных
-    
-    const weeks = new Set();
-    dates.forEach(dateStr => {
-        const d = new Date(dateStr);
-        d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Переходим к понедельнику недели
-        weeks.add(wKey(d));
-    });
-    
-    return Array.from(weeks).sort();
+const dates = Object.keys(getLessonsByDate()).sort();
+if (dates.length === 0) return []; // Нет данных
+
+const weeks = new Set();
+dates.forEach(dateStr => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Переходим к понедельнику недели
+    weeks.add(wKey(d));
+});
+
+return Array.from(weeks).sort();
 }
 
 function renderDropdown() {
-    const menu = document.getElementById("dropdown-menu");
-    menu.innerHTML = "";
+const menu = document.getElementById("dropdown-menu");
+menu.innerHTML = "";
 
-    const availableWeeks = getAvailableWeeks();
-    if (availableWeeks.length === 0) {
-        menu.innerHTML = '<div class="dropdown-item" style="text-align:center; color:#888;">Нет недель с занятиями</div>';
-        return;
-    }
+const availableWeeks = getAvailableWeeks();
+if (availableWeeks.length === 0) {
+    menu.innerHTML = '<div class="dropdown-item" style="text-align:center; color:#888;">Нет недель с занятиями</div>';
+    return;
+}
 
-    // Генерация HTML для всех элементов сразу (минимум DOM-операций)
-    let html = '';
-    availableWeeks.forEach(key => {
-        const d = new Date(key);
-        const end = new Date(d);
-        end.setDate(end.getDate() + 6);
-        const label = `${d.getDate()}–${end.getDate()} ${months[end.getMonth()]}`;
-        html += `<div class="dropdown-item" data-key="${key}">${label}</div>`;
-    });
-    menu.innerHTML = html;
+// Генерация HTML для всех элементов сразу (минимум DOM-операций)
+let html = '';
+availableWeeks.forEach(key => {
+    const d = new Date(key);
+    const end = new Date(d);
+    end.setDate(end.getDate() + 6);
+    const label = `${d.getDate()}–${end.getDate()} ${months[end.getMonth()]}`;
+    html += `<div class="dropdown-item" data-key="${key}">${label}</div>`;
+});
+menu.innerHTML = html;
 
-    // Добавляем обработчики кликов (делегируем на меню)
-    menu.addEventListener('click', (e) => {
-        const item = e.target.closest('.dropdown-item');
-        if (!item) return;
-        
-        currentWeekStart = new Date(item.dataset.key);
-        renderWeek();
-        document.getElementById("dropdown-label").textContent = item.textContent;
-        toggleDropdown(true);
-    }); // Убрали {once: true}
+// Добавляем обработчики кликов (делегируем на меню)
+menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.dropdown-item');
+    if (!item) return;
+    
+    currentWeekStart = new Date(item.dataset.key);
+    renderWeek();
+    document.getElementById("dropdown-label").textContent = item.textContent;
+    toggleDropdown(true);
+}); // Убрали {once: true}
 }
 
 function toggleDropdown(forceClose = false) {
-    const menu = document.getElementById("dropdown-menu");
+const menu = document.getElementById("dropdown-menu");
 
-    if (forceClose) {
-        menu.style.display = "none";
-        return;
-    }
+if (forceClose) {
+    menu.style.display = "none";
+    return;
+}
 
-    menu.style.display = menu.style.display === "block" ? "none" : "block";
+menu.style.display = menu.style.display === "block" ? "none" : "block";
 }
 
 document.addEventListener("click", (e) => {
-    const dd = document.querySelector(".dropdown");
-    if (!dd.contains(e.target)) {
-        toggleDropdown(true);
-    }
+const dd = document.querySelector(".dropdown");
+if (!dd.contains(e.target)) {
+    toggleDropdown(true);
+}
 });
 
 function renderWeek() {
-    const grid = document.getElementById("week-grid");
-    grid.innerHTML = ""; // Очищаем один раз
-    
-    const lessonsByDate = getLessonsByDate();
-    let d = new Date(currentWeekStart);
-    let html = ''; // Собираем весь HTML заранее
+const grid = document.getElementById("week-grid");
+grid.innerHTML = ""; // Очищаем один раз
 
-    for (let i = 0; i < 7; i++) {
-        const dateKey = wKey(d);
-        const dayLessons = (lessonsByDate[dateKey] || []).sort((a, b) => a.begin.localeCompare(b.begin));
-        
-        const label = `${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][d.getDay()==0?6:d.getDay()-1]}, ${d.getDate()} ${months[d.getMonth()]}`;
-        
-        let lessonsHtml = dayLessons.length > 0 
-            ? dayLessons.map(l => `
-                <div class="week-lesson-card">
-                    <div class="week-lesson-time">${l.begin} – ${l.end}</div>
-                    <div class="week-lesson-student">${l.name || "Ученик"} ${l.grade > 0 ? `(${l.grade} класс)` : ""} ${l.notes ? `(${l.notes})` : ''}</div>
-                </div>
-            `).join('')
-            : '<div class="empty-day">Нет занятий</div>';
-        
-        html += `
-            <div class="day-col">
-                <div class="day-header">${label}</div>
-                ${lessonsHtml}
-            </div>
-        `;
-        
-        d.setDate(d.getDate() + 1);
-    }
+const lessonsByDate = getLessonsByDate();
+let d = new Date(currentWeekStart);
+let html = ''; // Собираем весь HTML заранее
+
+for (let i = 0; i < 7; i++) {
+    const dateKey = wKey(d);
+    const dayLessons = (lessonsByDate[dateKey] || []).sort((a, b) => a.begin.localeCompare(b.begin));
     
-    grid.innerHTML = html; // Вставляем весь HTML одним вызовом (оптимизация DOM)
+    const label = `${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][d.getDay()==0?6:d.getDay()-1]}, ${d.getDate()} ${months[d.getMonth()]}`;
+    
+    let lessonsHtml = dayLessons.length > 0 
+        ? dayLessons.map(l => `
+            <div class="week-lesson-card">
+                <div class="week-lesson-time">${l.begin} – ${l.end}</div>
+                <div class="week-lesson-student">${l.name || "Ученик"} ${l.grade > 0 ? `(${l.grade} класс)` : ""} ${l.notes ? `(${l.notes})` : ''}</div>
+            </div>
+        `).join('')
+        : '<div class="empty-day">Нет занятий</div>';
+    
+    html += `
+        <div class="day-col">
+            <div class="day-header">${label}</div>
+            ${lessonsHtml}
+        </div>
+    `;
+    
+    d.setDate(d.getDate() + 1);
+}
+
+grid.innerHTML = html;
+updateTodayButtonState();
+ // Вставляем весь HTML одним вызовом (оптимизация DOM)
 }
 
 function prevWeek() {
-    const availableWeeks = getAvailableWeeks();
-    const currentIndex = availableWeeks.indexOf(wKey(currentWeekStart));
-    if (currentIndex > 0) {
-        currentWeekStart = new Date(availableWeeks[currentIndex - 1]);
-        renderWeek();
-    } else {
-        showToast("Нет предыдущей недели с занятиями");
-    }
+const availableWeeks = getAvailableWeeks();
+const currentIndex = availableWeeks.indexOf(wKey(currentWeekStart));
+if (currentIndex > 0) {
+    currentWeekStart = new Date(availableWeeks[currentIndex - 1]);
+    renderWeek();
+} else {
+    showToast("Нет предыдущей недели с занятиями");
+}
 }
 
 function nextWeek() {
-    const availableWeeks = getAvailableWeeks();
-    const currentIndex = availableWeeks.indexOf(wKey(currentWeekStart));
-    if (currentIndex < availableWeeks.length - 1 && currentIndex !== -1) {
-        currentWeekStart = new Date(availableWeeks[currentIndex + 1]);
-        renderWeek();
-    } else {
-        showToast("Нет следующей недели с занятиями");
-    }
+const availableWeeks = getAvailableWeeks();
+const currentIndex = availableWeeks.indexOf(wKey(currentWeekStart));
+if (currentIndex < availableWeeks.length - 1 && currentIndex !== -1) {
+    currentWeekStart = new Date(availableWeeks[currentIndex + 1]);
+    renderWeek();
+} else {
+    showToast("Нет следующей недели с занятиями");
+}
 }
 
 function goToday() {
-    const today = new Date(); // Реальная текущая дата
-    today.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Понедельник недели
-    const weekKey = wKey(today);
-    const availableWeeks = getAvailableWeeks();
-    if (availableWeeks.includes(weekKey)) {
-        currentWeekStart = today;
-        renderWeek();
-    } else {
-        // Найти ближайшую неделю
-        const closest = availableWeeks.reduce((prev, curr) => {
-            const currDate = new Date(curr);
-            const prevDate = new Date(prev);
-            return Math.abs(currDate - today) < Math.abs(prevDate - today) ? curr : prev;
-        });
-        currentWeekStart = new Date(closest);
-        renderWeek();
-        showToast("Перешли на ближайшую неделю с занятиями");
-    }
+const today = new Date(); // Реальная текущая дата
+today.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Понедельник недели
+const weekKey = wKey(today);
+const availableWeeks = getAvailableWeeks();
+if (availableWeeks.includes(weekKey)) {
+    currentWeekStart = today;
+    renderWeek();
+} else {
+    // Найти ближайшую неделю
+    const closest = availableWeeks.reduce((prev, curr) => {
+        const currDate = new Date(curr);
+        const prevDate = new Date(prev);
+        return Math.abs(currDate - today) < Math.abs(prevDate - today) ? curr : prev;
+    });
+    currentWeekStart = new Date(closest);
+    renderWeek();
+    showToast("Перешли на ближайшую неделю с занятиями");
+}
 }
 
 // Обновление кэша при загрузке новых данных
 const originalLoadData = loadData;
 loadData = async () => {
-    await originalLoadData();
-    cachedLessonsByDate = null; // Сбрасываем кэш
-    if (document.querySelector('.schedule-tab[data-mode="table"].active')) {
-        renderDropdown();
-        renderWeek();
-    }
+await originalLoadData();
+cachedLessonsByDate = null; // Сбрасываем кэш
+if (document.querySelector('.schedule-tab[data-mode="table"].active')) {
+    renderDropdown();
+    renderWeek();
+}
 };
 
 const originalLoadSchedule = loadSchedule;
 loadSchedule = async () => {
-    await originalLoadSchedule();
-    cachedLessonsByDate = null; // Сбрасываем кэш
-    if (document.querySelector('.schedule-tab[data-mode="table"].active')) {
-        renderDropdown();
-        renderWeek();
-    }
+await originalLoadSchedule();
+cachedLessonsByDate = null; // Сбрасываем кэш
+if (document.querySelector('.schedule-tab[data-mode="table"].active')) {
+    renderDropdown();
+    renderWeek();
+}
 };
 
 // === НОВЫЙ РАБОЧИЙ ПИКЕР ВРЕМЕНИ (iOS + ПК) ===
 let currentEditingField = 'start';
 
 function addOneHour(time) {
-    let [h, m] = time.split(':').map(Number);
-    h = (h + 1) % 24;
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+let [h, m] = time.split(':').map(Number);
+h = (h + 1) % 24;
+return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
 }
 
 // === ДЕСКТОП: ИДЕАЛЬНЫЙ ВВОД ВРЕМЕНИ (2025) ===
 // Очищается при клике + конец редактируемый + умная логика +1 час
 if (window.innerWidth >= 768) {
-    const checkModal = setInterval(() => {
+    // Для create-lesson-modal
+    const checkCreateModal = setInterval(() => {
         const modal = document.getElementById('create-lesson-modal');
         if (!modal || !modal.classList.contains('open')) return;
-        clearInterval(checkModal);
+        clearInterval(checkCreateModal);
 
         const startBox = document.getElementById('lesson-start-picker');
         const endBox   = document.getElementById('lesson-end-picker');
@@ -3234,6 +3614,115 @@ if (window.innerWidth >= 768) {
         // Автофокус на начало
         setTimeout(() => startInp.focus(), 100);
     }, 100);
+
+    // Для edit-lesson-modal (аналогично)
+    const checkEditModal = setInterval(() => {
+        const modal = document.getElementById('edit-lesson-modal');
+        if (!modal || !modal.classList.contains('open')) return;
+        clearInterval(checkEditModal);
+
+        const startBox = document.getElementById('edit-lesson-start-picker');
+        const endBox   = document.getElementById('edit-lesson-end-picker');
+        if (!startBox || !endBox) return;
+
+        // Скрываем кликабельные блоки
+        startBox.style.display = 'none';
+        endBox.style.display   = 'none';
+
+        let userEditedEnd = false; // флаг: трогал ли пользователь поле "Конец"
+
+        function normalize(v) {
+            v = v.replace(/\D/g, '').slice(0,4);
+            if (!v) return '12:00';
+            if (v.length <= 2) v += '00';
+            if (v.length === 3) v = '0' + v;
+            let h = Math.min(23, parseInt(v.slice(0,2)) || 0);
+            let m = Math.min(59, parseInt(v.slice(2)) || 0);
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        }
+
+        function addOneHour(t) {
+            let [h, m] = t.split(':').map(Number);
+            h = (h + 1) % 24;
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        }
+
+        // === ПОЛЕ НАЧАЛО ===
+        const startInp = document.createElement('input');
+        startInp.type = 'text';
+        startInp.className = 'custom-input';
+        startInp.placeholder = '12:00';
+        startInp.value = document.getElementById('edit-lesson-start-input').value;
+        startInp.style.cssText = 'text-align:center;font-size:22px;font-weight:600;margin-top:8px;width:100%;';
+
+        // === ПОЛЕ КОНЕЦ (теперь редактируемое!) ===
+        const endInp = document.createElement('input');
+        endInp.type = 'text';
+        endInp.className = 'custom-input';
+        endInp.placeholder = '13:00';
+        endInp.value = document.getElementById('edit-lesson-end-input').value;
+        endInp.style.cssText = 'text-align:center;font-size:22px;font-weight:600;margin-top:8px;width:100%;background:#f8f8f8;';
+
+        startBox.parentNode.appendChild(startInp);
+        endBox.parentNode.appendChild(endInp);
+
+        // Очистка при фокусе
+        startInp.addEventListener('focus', () => {
+            if (!userEditedEnd) {
+                startInp.value = '';
+            }
+        });
+        endInp.addEventListener('focus', () => {
+            endInp.value = '';
+            userEditedEnd = true; // пользователь начал редактировать конец
+        });
+
+        // Форматирование при вводе
+        const formatInput = (inp) => {
+            let v = inp.value.replace(/\D/g, '').slice(0,4);
+            if (v.length >= 3) v = v.slice(0,2) + ':' + v.slice(2);
+            inp.value = v;
+        };
+        startInp.addEventListener('input', () => formatInput(startInp));
+        endInp.addEventListener('input', () => formatInput(endInp));
+
+        // Применение значений
+        const applyStart = () => {
+            const t = normalize(startInp.value || '12:00');
+            startInp.value = t;
+            startBox.textContent = t;
+            document.getElementById('edit-lesson-start-input').value = t;
+
+            // Только если пользователь НЕ трогал конец — подставляем +1 час
+            if (!userEditedEnd) {
+                const endT = addOneHour(t);
+                endInp.value = endT;
+                endBox.textContent = endT;
+                document.getElementById('edit-lesson-end-input').value = endT;
+            }
+        };
+
+        const applyEnd = () => {
+            const t = normalize(endInp.value || addOneHour(startInp.value));
+            endInp.value = t;
+            endBox.textContent = t;
+            document.getElementById('edit-lesson-end-input').value = t;
+            userEditedEnd = true;
+        };
+
+        startInp.addEventListener('blur', applyStart);
+        endInp.addEventListener('blur', applyEnd);
+
+        startInp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { applyStart(); startInp.blur(); }
+        });
+        endInp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { applyEnd(); endInp.blur(); }
+        });
+
+        // Автофокус на начало
+        setTimeout(() => startInp.focus(), 100);
+    }, 100);
 }
 // МОБИЛЬНЫЙ iOS-ПИКЕР
 else {
@@ -3270,12 +3759,12 @@ else {
         return `${h}:${m}`;
     }
 
-    function openPicker(field) {
+    function openPicker(field, modalPrefix) {
         currentEditingField = field;
         document.body.classList.add('picker-open');
         picker.classList.add('open');
         initWheels();
-        const [h, m] = document.getElementById(`lesson-${field}-picker`).textContent.split(':');
+        const [h, m] = document.getElementById(`${modalPrefix}-${field}-picker`).textContent.split(':');
         setTimeout(() => {
             const hi = [...document.getElementById('tp-hours').children].findIndex(el => el.textContent === h.padStart(2,'0'));
             const mi = [...document.getElementById('tp-minutes').children].findIndex(el => el.textContent === m.padStart(2,'0'));
@@ -3292,12 +3781,13 @@ else {
 
     document.querySelector('.tp-btn.done').onclick = () => {
         const time = getTime();
-        document.getElementById(`lesson-${currentEditingField}-picker`).textContent = time;
-        document.getElementById(`lesson-${currentEditingField}-input`).value = time;
+        const modalPrefix = document.getElementById('create-lesson-modal').classList.contains('open') ? 'lesson' : 'edit-lesson';
+        document.getElementById(`${modalPrefix}-${currentEditingField}-picker`).textContent = time;
+        document.getElementById(`${modalPrefix}-${currentEditingField}-input`).value = time;
         if (currentEditingField === 'start') {
             const end = addOneHour(time);
-            document.getElementById('lesson-end-picker').textContent = end;
-            document.getElementById('lesson-end-input').value = end;
+            document.getElementById(`${modalPrefix}-end-picker`).textContent = end;
+            document.getElementById(`${modalPrefix}-end-input`).value = end;
         }
         picker.classList.remove('open');
         document.body.classList.remove('picker-open');
@@ -3308,20 +3798,40 @@ else {
         document.body.classList.remove('picker-open');
     };
 
-    document.getElementById('lesson-start-picker').onclick = () => openPicker('start');
-    document.getElementById('lesson-end-picker').onclick = () => openPicker('end');
+    document.getElementById('lesson-start-picker').onclick = () => openPicker('start', 'lesson');
+    document.getElementById('lesson-end-picker').onclick = () => openPicker('end', 'lesson');
+    document.getElementById('edit-lesson-start-picker').onclick = () => openPicker('start', 'edit-lesson');
+    document.getElementById('edit-lesson-end-picker').onclick = () => openPicker('end', 'edit-lesson');
 }
 
     
 
+// Улучшенная функция скролла к "сегодня" — плавная, без дёрганья
 function scrollToToday() {
-    const todaySection = document.getElementById("today-section");
-    if (todaySection) {
-        todaySection.scrollIntoView({ behavior: "smooth", block: "start" });
-        setTimeout(() => window.scrollBy(0, -90), 400); // отступ под хедер
-    } else {
-        showToast("На сегодня занятий нет");
-    }
+const todaySection = document.getElementById("today-section");
+if (!todaySection) {
+    showToast("На сегодня занятий нет");
+    return;
+}
+
+// Высота sticky-хедера (адаптивно: 68px на десктопе, ~100px на мобильных с gap)
+const headerHeight = window.innerWidth < 768 ? 100 : 68;
+
+// Точный offset: позиция секции минус высота хедера
+const offsetTop = todaySection.offsetTop - headerHeight;
+
+// Плавный скролл без overscroll
+window.scrollTo({
+    top: offsetTop,
+    behavior: 'smooth'  // Нативно плавный в браузерах
+});
+
+// Опционально: визуальный фидбек (анимация заголовка "Сегодня")
+todaySection.style.transition = 'all 0.3s ease';
+todaySection.style.backgroundColor = 'rgba(52, 199, 89, 0.1)';  // Лёгкий зелёный хайлайт
+setTimeout(() => {
+    todaySection.style.backgroundColor = '';
+}, 1000);
 }
 window.hasScrolledToToday = false; // сброс при смене режима
 </script>

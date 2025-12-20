@@ -1,18 +1,26 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from app.test import StudentCreate, StudentResponse, select_users, create_table, select_student, insert_student, update_student_orm, delete_student_orm
+from app.test import StudentCreate, StudentResponse, select_users, select_user_id, select_student, insert_student, update_student_orm, delete_student_orm
+from app.security.security_app import decode_user_from_jwt_access
 
 router = APIRouter()
 
 @router.get("/", response_model=List[StudentResponse])
-async def get_all_students():
-    try:
-        result = await select_users()
-    except:
-        raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
-    return result
+async def get_all_students(payload = Depends(decode_user_from_jwt_access)):
+    if payload.get("type") == "access":
+        user_id = int(payload.get("sub"))
+        user = await select_user_id(user_id)
+        if user:
+            try:
+                try:
+                    result = await select_users(user_id)
+                except:
+                    raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
+                return result
+            except:
+                HTTPException(status_code=500)
 
-@router.get("/{user_id}")
+@router.get("/{user_id}",dependencies=[Depends(decode_user_from_jwt_access)])
 async def get_student(user_id : int):
     try:
         result = await select_student(user_id)
@@ -20,17 +28,22 @@ async def get_student(user_id : int):
         raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
     return result
 
-@router.post("/create")
-async def create_students(data : StudentCreate):
-    try:
+@router.post("/create",dependencies=[Depends(decode_user_from_jwt_access)])
+async def create_students(data : StudentCreate, payload= Depends(decode_user_from_jwt_access)):
+    if payload.get("type") == "access":
+        # try:
         if data.descriptions is None:
             data.descriptions = ""
-        result = await insert_student(data)
-    except:
-        raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
-    return {"message":f"{data.name} добавлен успешно"}
+        if data.contacts is None:
+            data.contacts = ""
+        result = await insert_student(data, int(payload.get("sub")))
+        # except:
+        #     raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
+        return {"message":f"{data.name} добавлен успешно"}
+    else:
+        raise HTTPException(status_code=401)
 
-@router.get("/info")
+@router.get("/info",dependencies=[Depends(decode_user_from_jwt_access)])
 async def get_info_students():
     data={"studentsCount":100,
           "lessonsCount":50,
@@ -38,7 +51,7 @@ async def get_info_students():
           "revenue":0}
     return data
 
-@router.put("/update/{id}")
+@router.put("/update/{id}",dependencies=[Depends(decode_user_from_jwt_access)])
 async def update_student(id : int,data : dict):
     try:
         result = await update_student_orm(data=data, user_id=id)
@@ -46,7 +59,7 @@ async def update_student(id : int,data : dict):
         raise HTTPException(status_code=500, detail="ошибка со стоороны бд")
     return {"message":"Информация обновлена!"}
 
-@router.delete("/{id}")
+@router.delete("/{id}",dependencies=[Depends(decode_user_from_jwt_access)])
 async def delete_student(id : int):
     try:
         result = await delete_student_orm(id)

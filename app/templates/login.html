@@ -1,0 +1,110 @@
+<!-- login.html - Страница входа (логин) -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в Repetitor App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .form-container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; margin-bottom: 30px; color: #4a90e2; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #4a90e2; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        button:hover { background-color: #357abd; }
+        .links { text-align: center; margin-top: 20px; }
+        .links a { color: #4a90e2; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Вход</h2>
+        <form id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Пароль" required>
+            <button type="submit" id="login-btn">Войти</button>
+        </form>
+        <div class="links">
+            <p>Нет аккаунта? <a href="register">Зарегистрироваться</a></p>
+            <p><a href="home">На главную</a></p>
+        </div>
+    </div>
+    
+    <script>
+        const API = "https://repetitor-web-app.cloudpub.ru";
+
+        // Функция для обновления access токена
+        async function refreshAccessToken() {
+            const res = await fetch('/auth/refresh/', {
+                method: 'POST',
+                credentials: 'include', // refresh token в HttpOnly cookie
+            });
+
+            if (!res.ok) {
+                // refresh недействителен → logout
+                localStorage.removeItem('accessToken');
+                window.location.href = 'login.html';
+                throw new Error('Refresh token expired');
+            }
+
+            const data = await res.json();
+            localStorage.setItem('accessToken', data.access_token);
+            return data.access_token;
+        }
+
+        // Основная обёртка для fetch
+        async function apiClient(url, options = {}, retry = true) {
+            let token = localStorage.getItem('accessToken');
+
+            const headers = {
+                ...options.headers,
+                'Content-Type': 'application/json',
+            };
+
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            let response = await fetch(API + url, {
+                ...options,
+                headers,
+                credentials: 'include', // нужно для refresh cookie
+            });
+
+            // Если access токен истёк и мы ещё не делали retry
+            if (response.status === 401 && retry) {
+                try {
+                    const newToken = await refreshAccessToken();
+
+                    // повторяем запрос с новым токеном
+                    return await apiClient(url, options, false);
+                } catch (err) {
+                    throw err;
+                }
+            }
+
+            return response;
+        }
+
+        // Обработчик входа
+        document.getElementById('login-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            try {
+                const res = await apiClient('/auth/login/', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('accessToken', data.access_token);
+                    window.location.href = 'https://repetitor-web-app.cloudpub.ru'; // Перенаправление на основную страницу приложения
+                } else {
+                    alert('Неверные данные');
+                }
+            } catch (err) {
+                alert('Ошибка входа: ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>
