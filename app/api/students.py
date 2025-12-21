@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from app.test import StudentCreate, StudentResponse, select_users, select_user_id, select_student, insert_student, update_student_orm, delete_student_orm
+from app.test import StudentCreate, StudentResponse, select_users, select_user_id, select_student, insert_student, update_student_orm, delete_student_orm, count_lessons,count_students
 from app.security.security_app import decode_user_from_jwt_access
 
 router = APIRouter()
@@ -20,15 +20,8 @@ async def get_all_students(payload = Depends(decode_user_from_jwt_access)):
             except:
                 HTTPException(status_code=500)
 
-@router.get("/{user_id}",dependencies=[Depends(decode_user_from_jwt_access)])
-async def get_student(user_id : int):
-    try:
-        result = await select_student(user_id)
-    except:
-        raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
-    return result
 
-@router.post("/create",dependencies=[Depends(decode_user_from_jwt_access)])
+@router.post("/create")
 async def create_students(data : StudentCreate, payload= Depends(decode_user_from_jwt_access)):
     if payload.get("type") == "access":
         # try:
@@ -43,13 +36,24 @@ async def create_students(data : StudentCreate, payload= Depends(decode_user_fro
     else:
         raise HTTPException(status_code=401)
 
-@router.get("/info",dependencies=[Depends(decode_user_from_jwt_access)])
-async def get_info_students():
-    data={"studentsCount":100,
-          "lessonsCount":50,
-          "attendance":500,
+@router.get("/info")
+async def get_info_students(payload= Depends(decode_user_from_jwt_access)):
+    user_id = int(payload.get("sub"))
+    les = await count_lessons(user_id)
+    stud = await count_students(user_id)
+    data={"studentsCount":stud,
+          "lessonsCount":les,
+          "attendance":0,
           "revenue":0}
     return data
+
+@router.get("/{user_id}",dependencies=[Depends(decode_user_from_jwt_access)])
+async def get_student(user_id : int):
+    try:
+        result = await select_student(user_id)
+    except:
+        raise HTTPException(status_code=500, detail="Запрос в бд выбил ошибку")
+    return result
 
 @router.put("/update/{id}",dependencies=[Depends(decode_user_from_jwt_access)])
 async def update_student(id : int,data : dict):

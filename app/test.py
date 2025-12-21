@@ -1,7 +1,7 @@
 from sqlalchemy.types import String, Boolean
 import uuid
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy import func, ForeignKey,select, Time, Date, update, delete
+from sqlalchemy import func, ForeignKey,select, Time, Date, update, delete, extract
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from typing import Optional
@@ -322,3 +322,13 @@ async def revoke_token_orm(jti : str): # ЗАМЕНИТЬ
         await session.execute(stat)
         await session.commit()
         return {"message":"update is good"}
+    
+async def count_students(user_id):
+    async with async_session_maker() as session:
+        students = await session.scalar(select(func.count()).select_from(Student).where(Student.user_id == user_id))
+        return students
+    
+async def count_lessons(user_id):
+    async with async_session_maker() as session:
+        students = await session.scalar(select(func.count()).select_from(LessonPlan).join(LessonPlan.student).where(Student.user_id==user_id, extract("year", LessonPlan.date) == extract("year", func.current_date()), extract("month", LessonPlan.date) == extract("month", func.current_date())))
+        return students

@@ -2271,9 +2271,11 @@ async function loadData() {
 // ===== Рендер дашборда =====
 async function loadDashboardData() {
 try {
-    //const response = await apiClient(  '/students/info');
-//     if (response.status === 0||!response.ok ||response.status === 404 || !data || Object.keys(data).length === 0) {
-//     response = await fetch(`${API}/students/info`);
+    const response = await apiClient('/students/info');
+//     if (!response.ok) {
+//     const errorData = await response.json().catch(() => ({}));
+//     console.error(`Ошибка ${response.status}:`, errorData);
+//     throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
 // }
     const data = await response.json(); 
 
@@ -3204,6 +3206,11 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.lesson-actions')) {
         document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
             menu.classList.remove('show');
+            if (menu.classList.contains('show')) {
+                menu.style.zIndex = '1000';  // Высокий z-index, чтобы меню было сверху всего
+            } else {
+                menu.style.zIndex = '';  // Сбрасываем, когда скрыто
+            }
         });
     }
 });
