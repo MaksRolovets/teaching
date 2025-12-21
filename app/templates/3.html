@@ -3012,9 +3012,11 @@ const payload = {
 };
 
 try {
-    const res = await fetch(`${API}/lessons/${lessonId}/`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+    const res = await apiClient( `/lesson/${lessonsId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload)
     });
 
@@ -3240,7 +3242,7 @@ async function deleteLesson(id) {
 if (!confirm("Удалить это занятие?")) return;
 
 try {
-    const res = await fetch(`${API}/lessons/${id}/`, { method: 'DELETE' });
+    const res = await apiClient(`/lessons/${id}/`, { method: 'DELETE' });
     if (res.ok) {
         loadData();  // Обновляем данные
         loadSchedule();  // Перерендерим расписание
@@ -3320,9 +3322,12 @@ const payload = {
 };
 
 try {
-    const response = await fetch(`${API}/students/update/${id}`, {
-        method: "PUT",
-        headers: {"Content-Type": "application/json"},
+    
+    const response = await apiClient( `/students/update/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload)
     });
 
@@ -3353,7 +3358,7 @@ if (!confirm("Вы уверены, что хотите удалить этого
 }
 
 try {
-    const response = await fetch(`${API}/students/${id}`, {  // ← предположим, что эндпоинт для DELETE — /students/{id}/ (как в deleteLesson)
+    const response = await apiClient(`/students/${id}`, {  // ← предположим, что эндпоинт для DELETE — /students/{id}/ (как в deleteLesson)
         method: "DELETE"
     });
 
