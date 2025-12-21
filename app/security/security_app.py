@@ -17,8 +17,8 @@ SECRET_KEY = "Asdfjhsergihiaegiaiergoiaeroigjoaerjogjaoeirgjopajero"
 
 ALGHORITM = "HS256"
 
-ACCESS_TOKEN_EXPIRE_MIN = 1
-REFRESH_TOKEN_EXPIRE_HOUR = 2
+ACCESS_TOKEN_EXPIRE_MIN = 15
+REFRESH_TOKEN_EXPIRE_HOUR = 720
 
 def create_jti()-> str:
     return str(uuid.uuid4())
@@ -42,7 +42,7 @@ def create_jwt_access(user_id: int) -> str:
 
 def create_jwt_refresh(user_id:int) ->str:
     jti = create_jti()
-    expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=REFRESH_TOKEN_EXPIRE_HOUR)
+    expire = datetime.datetime.utcnow() + datetime.timedelta(hours=REFRESH_TOKEN_EXPIRE_HOUR)
     payload = {
         "sub": str(user_id),
         "jti":jti,
