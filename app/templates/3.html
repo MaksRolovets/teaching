@@ -3012,7 +3012,7 @@ const payload = {
 };
 
 try {
-    const res = await apiClient( `/lessons/${lessonsId}`, {
+    const res = await apiClient(`/lessons/${lessonId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -3031,7 +3031,7 @@ try {
     }
 } catch (e) {
     console.error(e);
-    alert("Нет связи с сервером");
+    alert(e);
 }
 });
 
