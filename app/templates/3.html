@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <title>Учебное приложение</title>
         <style>
         /* Скрываем тело страницы до проверки токена, чтобы не было мигания */
         body { display: none; }
     </style>
     <style>
+        
         /* styles.css */
 * {
     margin: 0;
@@ -1587,6 +1589,96 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
         height: 92%;
     }
 }
+/* Модальное действие для карточки занятия — улучшенный дизайн */
+.lesson-action-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #f2f2f7; /* Лёгкий серый фон как в iOS */
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    z-index: 10010;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.25,0.8,0.25,1);
+    max-height: 90%;
+    overflow: hidden;
+}
+
+.lesson-action-sheet.open {
+    transform: translateY(0);
+}
+
+.action-sheet-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-sheet-group {
+    background: white;
+    border-radius: 18px 18px 0 0;
+    overflow: hidden;
+}
+
+.action-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    font-size: 17px;
+    color: #007aff;
+    background: white;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.action-sheet-item:hover,
+.action-sheet-item:active {
+    background: #f2f2f7; /* Лёгкий ховер/актив */
+}
+
+.action-sheet-item.destructive {
+    color: #ff3b30;
+}
+
+.action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.action-text {
+    font-weight: 400;
+}
+
+.action-divider {
+    height: 0.5px;
+    background: #d2d2d7;
+    margin: 0 20px;
+}
+
+.action-sheet-cancel {
+    margin: 8px 8px 16px; /* Отступы для красоты */
+    padding: 16px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #007aff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.action-sheet-cancel:hover,
+.action-sheet-cancel:active {
+    background: #f2f2f7;
+}
     </style>
 </head>
 <body>
@@ -1944,7 +2036,50 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
         </button>
     </div>
 </div>
-
+<!-- Модальное действие для занятия -->
+<!-- Модальное действие для занятия -->
+<div id="lesson-action-sheet" class="lesson-action-sheet">
+    <div class="action-sheet-content">
+        <div class="action-sheet-group">
+            <button class="action-sheet-item" id="action-share">
+                <span class="action-icon">
+                    <!-- SVG для "Поделиться" (стрелка) -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 3L20 10M20 10V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20V4C4 2.89543 4.89543 2 6 2H13" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="action-text">Поделиться</span>
+            </button>
+            
+            <div class="action-divider"></div>
+            
+            <button class="action-sheet-item" id="action-edit">
+                <span class="action-icon">
+                    <!-- SVG для "Редактировать" (карандаш) -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4C3.44772 4 3 4.44772 3 5V19C3 19.5523 3.44772 20 4 20H18C18.5523 20 19 19.5523 19 19V12M16 3L21 8M21 3L16 8M21 3V8H16" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="action-text">Редактировать</span>
+            </button>
+            
+            <div class="action-divider"></div>
+            
+            <button class="action-sheet-item destructive" id="action-delete">
+                <span class="action-icon">
+                    <!-- SVG для "Удалить" (урна) -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="#FF3B30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="#FF3B30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="action-text">Удалить</span>
+            </button>
+        </div>
+        
+        <button class="action-sheet-cancel" id="action-cancel">Отмена</button>
+    </div>
+</div>
 <style>
     .dashboard-header {
         display: flex;
@@ -2484,7 +2619,7 @@ function renderScheduleList() {
                         </div>
 
                         <div class="lesson-actions">
-                            <button class="lesson-menu" onclick="toggleLessonMenu(event, ${l.id})">⋮</button>
+                            <<button class="lesson-menu" onclick="openLessonActionSheet(${l.id})">⋮</button>
                             <div class="lesson-dropdown" id="dropdown-${l.id}">
                                 <div class="dropdown-item" onclick="editLesson(${l.id})">Изменить</div>
                                 <div class="dropdown-item delete" onclick="deleteLesson(${l.id})">Удалить</div>
@@ -3191,15 +3326,67 @@ setTimeout(() => {
 }
 
 // Показать/скрыть меню
-function toggleLessonMenu(e, lessonId) {
-    e.stopPropagation();
-    e.preventDefault(); // Добавлено для предотвращения конфликтов
-    document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
-        if (menu.id !== `dropdown-${lessonId}`) menu.classList.remove('show');
-    });
-    const menu = document.getElementById(`dropdown-${lessonId}`);
-    menu.classList.toggle('show');
+let currentLessonId = null; // Храним ID текущего открытого занятия
+
+function openLessonActionSheet(lessonId) {
+    currentLessonId = lessonId;
+
+    const sheet = document.getElementById('lesson-action-sheet');
+    sheet.classList.add('open');
+    
+    // Показываем overlay (тот же, что для модалок)
+    document.getElementById('overlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
+
+function closeLessonActionSheet() {
+    const sheet = document.getElementById('lesson-action-sheet');
+    sheet.classList.remove('open');
+    
+    document.getElementById('overlay').classList.remove('show');
+    document.body.style.overflow = '';
+    
+    currentLessonId = null;
+}
+
+// Обработчики кнопок в окошке
+document.getElementById('action-share').addEventListener('click', () => {
+    if (!currentLessonId) return;
+    const lesson = appData.schedule.find(l => l.id === currentLessonId);
+    if (!lesson) return;
+
+    // Пример текста для шаринга
+    const text = `${lesson.name || 'Занятие'} — ${lesson.date.replace(/-/g, '.')} с ${lesson.begin} до ${lesson.end}${lesson.notes ? '\nЗаметка: ' + lesson.notes : ''}`;
+    
+    if (navigator.share) {
+        navigator.share({ text });
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Скопировано в буфер обмена');
+        });
+    }
+    
+    closeLessonActionSheet();
+});
+
+document.getElementById('action-edit').addEventListener('click', () => {
+    if (currentLessonId) editLesson(currentLessonId);
+    closeLessonActionSheet();
+});
+
+document.getElementById('action-delete').addEventListener('click', () => {
+    if (currentLessonId) deleteLesson(currentLessonId);
+    closeLessonActionSheet();
+});
+
+document.getElementById('action-cancel').addEventListener('click', closeLessonActionSheet);
+
+// Закрытие по overlay
+document.getElementById('overlay').addEventListener('click', () => {
+    if (document.getElementById('lesson-action-sheet').classList.contains('open')) {
+        closeLessonActionSheet();
+    }
+});
 
 // Закрывать меню при клике вне
 document.addEventListener('click', (e) => {
