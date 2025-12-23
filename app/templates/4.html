@@ -8,47 +8,6 @@
         /* Скрываем тело страницы до проверки токена, чтобы не было мигания */
         body { display: none; }
     </style>
-    <script type="module">
-        document.addEventListener('DOMContentLoaded', async () => {
-
-            // Функция для обновления access токена через refresh
-            async function refreshAccessToken() {
-                try {
-                    const res = await fetch('/auth/refresh', {
-                        method: 'POST',
-                        credentials: 'include' // важно, чтобы refresh cookie ушёл
-                    });
-
-                    if (!res.ok) {
-                        // Refresh недействителен → разлогиниваем пользователя
-                        localStorage.removeItem('accessToken');
-                        return false;
-                    }
-
-                    const data = await res.json();
-                    localStorage.setItem('accessToken', data.access_token);
-                    return true;
-                } catch (err) {
-                    console.error('Ошибка при обновлении access токена:', err);
-                    localStorage.removeItem('accessToken');
-                    return false;
-                }
-            }
-
-            // Основная логика загрузки страницы
-            let hasAccess = !!localStorage.getItem('accessToken');
-
-                document.body.style.display = 'block';
-
-
-            // Если токен есть или успешно обновили → показываем страницу
-           // document.body.style.display = 'block';
-
-            // Здесь можно запускать основной код приложения
-            // Например: loadData(); loadDashboardData();
-        });
-    </script>
-
     <style>
         /* styles.css */
 * {
@@ -650,7 +609,7 @@ margin-bottom: 12px;
 /* ДОРАБОТКИ ДЛЯ МОДАЛКИ РАСПИСАНИЯ */
 /* Модалка вылетает чуть выше: уменьшаем height с 70% до 60% (чтобы выше) */
 #create-lesson-modal {
-height: 80%;
+height: 100%;
 }
 
 /* Поля начала и конца на одной строчке: используем flex для их группы */
@@ -1628,6 +1587,96 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
         height: 92%;
     }
 }
+/* Модальное действие для карточки занятия — улучшенный дизайн */
+.lesson-action-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #f2f2f7; /* Лёгкий серый фон как в iOS */
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    z-index: 10010;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.25,0.8,0.25,1);
+    max-height: 90%;
+    overflow: hidden;
+}
+
+.lesson-action-sheet.open {
+    transform: translateY(0);
+}
+
+.action-sheet-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-sheet-group {
+    background: white;
+    border-radius: 18px 18px 0 0;
+    overflow: hidden;
+}
+
+.action-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    font-size: 17px;
+    color: #007aff;
+    background: white;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.action-sheet-item:hover,
+.action-sheet-item:active {
+    background: #f2f2f7; /* Лёгкий ховер/актив */
+}
+
+.action-sheet-item.destructive {
+    color: #ff3b30;
+}
+
+.action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.action-text {
+    font-weight: 400;
+}
+
+.action-divider {
+    height: 0.5px;
+    background: #d2d2d7;
+    margin: 0 20px;
+}
+
+.action-sheet-cancel {
+    margin: 8px 8px 16px; /* Отступы для красоты */
+    padding: 16px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #007aff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.action-sheet-cancel:hover,
+.action-sheet-cancel:active {
+    background: #f2f2f7;
+}
     </style>
 </head>
 <body>
@@ -1646,6 +1695,7 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
             
             <div class="user-menu">
                 <div class="user-avatar">ИИ</div>
+                <a href="#" id="logout" class="nav-link">🚪 Выход</a>
             </div>
         </div>
     </nav>
@@ -1654,8 +1704,10 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
     <main class="main-content">
         <!-- Страница Дашборд -->
         <div id="dashboard" class="page active">
-            <h1 style="margin-bottom: 20px;">Дашборд</h1>
-            
+            <div class="dashboard-header">
+                <h1>Дашборд</h1>
+                <a href="#" id="mobile-logout" class="nav-link">🚪 Выход</a>
+            </div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value">24</div>
@@ -1909,7 +1961,10 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
             <input type="checkbox" id="lesson-recurring">
             <span style="margin-left:8px; font-size:15px;">Повторять еженедельно</span>
         </label>
-
+        <label class="sheet-field" id="recurring-weeks-field" style="display: none; margin-top: 10px;">
+    <span>На сколько недель</span>
+    <input type="number" id="lesson-recurring-weeks" min="1" max="52" value="4" style="width: 60px; text-align: center;">
+</label>
         <button id="create-lesson-btn" class="sheet-save-btn">
             Создать занятие
         </button>
@@ -1979,12 +2034,78 @@ body.picker-open { overflow: hidden; position: fixed; width: 100%; }
         </button>
     </div>
 </div>
+<!-- Модальное действие для занятия -->
+<!-- Модальное действие для занятия -->
+<div id="lesson-action-sheet" class="lesson-action-sheet">
+    <div class="action-sheet-content">
+        <div class="action-sheet-group">
+            <button class="action-sheet-item" id="action-share">
+                <span class="action-icon">
+                    <!-- SVG для "Поделиться" (стрелка) -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 3L20 10M20 10V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20V4C4 2.89543 4.89543 2 6 2H13" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="action-text">Поделиться</span>
+            </button>
+            
+            <div class="action-divider"></div>
+            
+            <button class="action-sheet-item" id="action-edit">
+                <span class="action-icon">
+                    <!-- SVG для "Редактировать" (карандаш) -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4C3.44772 4 3 4.44772 3 5V19C3 19.5523 3.44772 20 4 20H18C18.5523 20 19 19.5523 19 19V12M16 3L21 8M21 3L16 8M21 3V8H16" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="action-text">Редактировать</span>
+            </button>
+            
+            <div class="action-divider"></div>
+            
+            <button class="action-sheet-item destructive" id="action-delete">
+                <span class="action-icon">
+                    <!-- SVG для "Удалить" (урна) -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="#FF3B30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="#FF3B30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="action-text">Удалить</span>
+            </button>
+        </div>
+        
+        <button class="action-sheet-cancel" id="action-cancel">Отмена</button>
+    </div>
+</div>
+<style>
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
 
+    .dashboard-header h1 {
+        margin-bottom: 0;
+    }
+
+    @media (min-width: 769px) {
+        #mobile-logout {
+            display: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        #logout {
+            display: none;
+        }
+    }
+</style>
+</body>
 <script>
-// const API = "http://192.168.0.108:8000";
-// const API = "http://172.20.10.2:8000";
-// const API = "http://127.0.0.1:8000";
-const API = "https://repetitor-web-app.cloudpub.ru"
+
+const API = "https://repetitor-web-app.cloudpub.ru" //lox
 
 
 // Функция для обновления access токена
@@ -2046,7 +2167,73 @@ async function apiClient(endpoint, options = {}, retry = true) {
     return response;
 }
 
+(async () => {
+    const accessToken = localStorage.getItem('accessToken');
+    
+    if (!accessToken) {
+        window.location.href = '/home';
+        return;
+    }
 
+    try {
+        await refreshAccessToken();  // Если fail, функция сама редиректит
+    } catch (err) {
+        return;  // Редирект уже сработал внутри
+    }
+
+    // Если успех — показываем страницу и загружаем данные
+    document.body.style.display = 'block';
+    await loadData();
+    await loadDashboardData(); 
+    await loadSchedule();  // Ждём, чтобы данные были готовы
+    cachedLessonsByDate = null;  // Сброс кэша явно
+    updateTodayButtonState();
+    // Если дашборд нужен сразу (по умолчанию активен)
+})();
+
+async function handleLogout() {
+        const accessToken = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        try {
+            const response = await fetch('/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+
+            if (!response.ok) {
+                console.error('Logout API failed:', response.status);
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+        } finally {
+            // Always clear tokens and redirect, even if API fails
+            clearTokens();
+            redirectToLogin();
+        }
+    }
+
+    function clearTokens() {
+        localStorage.removeItem('accessToken');
+    }
+
+    function redirectToLogin() {
+        window.location.href = '/home'; 
+    }
+
+    // Add event listeners
+    document.getElementById('logout').addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
+    });
+
+    document.getElementById('mobile-logout').addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
+    });
 
 let sidebarWasOpen = false;
 // Глобальный флаг для первого загрузки schedule (авто-скролл к "сегодня")
@@ -2217,9 +2404,11 @@ async function loadData() {
 // ===== Рендер дашборда =====
 async function loadDashboardData() {
 try {
-    //const response = await apiClient(  '/students/info');
-//     if (response.status === 0||!response.ok ||response.status === 404 || !data || Object.keys(data).length === 0) {
-//     response = await fetch(`${API}/students/info`);
+    const response = await apiClient('/students/info');
+//     if (!response.ok) {
+//     const errorData = await response.json().catch(() => ({}));
+//     console.error(`Ошибка ${response.status}:`, errorData);
+//     throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
 // }
     const data = await response.json(); 
 
@@ -2428,7 +2617,7 @@ function renderScheduleList() {
                         </div>
 
                         <div class="lesson-actions">
-                            <button class="lesson-menu" onclick="toggleLessonMenu(event, ${l.id})">⋮</button>
+                            <<button class="lesson-menu" onclick="openLessonActionSheet(${l.id})">⋮</button>
                             <div class="lesson-dropdown" id="dropdown-${l.id}">
                                 <div class="dropdown-item" onclick="editLesson(${l.id})">Изменить</div>
                                 <div class="dropdown-item delete" onclick="deleteLesson(${l.id})">Удалить</div>
@@ -2867,6 +3056,15 @@ const date = document.getElementById('lesson-date').value;           // ← НО
 const begin = document.getElementById('lesson-start-input').value;
 const end = document.getElementById('lesson-end-input').value;
 const notes = document.getElementById('lesson-notes')?.value.trim() || null;
+const recurring = document.getElementById('lesson-recurring').checked;
+let weeks = 1; // По умолчанию 1, если не recurring
+if (recurring) {
+    weeks = parseInt(document.getElementById('lesson-recurring-weeks').value) || 1;
+    if (weeks < 1 || weeks > 52) {
+        alert('Укажите недели от 1 до 52');
+        return;
+    }
+}
 
 if (!studentId || !date || !begin || !end) {
     alert("Заполните все поля: ученик, дата, время начала и конца");
@@ -2879,7 +3077,8 @@ const payload = {
     begin: begin,         // "14:30"
     end: end,             // "15:30"
     notes: notes,
-    recurring: false
+    recurring: false,
+    weeks : weeks
 };
 
 console.log("Отправляем на сервер:", payload);
@@ -2907,7 +3106,8 @@ document.getElementById('lesson-end-input').value = '13:00';
 
 document.getElementById('lesson-notes').value = '';
 document.getElementById('lesson-recurring').checked = false;
-
+document.getElementById('lesson-recurring-weeks').value = '4'; // Сброс на дефолт
+document.getElementById('recurring-weeks-field').style.display = 'none';
 // Сброс флагов
 selectingStudentForLesson = false;
         showToast("Занятие добавлено!");
@@ -2947,9 +3147,11 @@ const payload = {
 };
 
 try {
-    const res = await fetch(`${API}/lessons/${lessonId}/`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+    const res = await apiClient(`/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload)
     });
 
@@ -2964,7 +3166,7 @@ try {
     }
 } catch (e) {
     console.error(e);
-    alert("Нет связи с сервером");
+    alert(e);
 }
 });
 
@@ -2979,7 +3181,9 @@ previousPage = navigation.currentPage; // Запоминаем текущую с
 closeModal('create-lesson-modal'); // Закрываем модалку временно
 navigation.navigateTo('students'); // Переходим к ученикам
 });
-
+document.getElementById('lesson-recurring').addEventListener('change', (e) => {
+    document.getElementById('recurring-weeks-field').style.display = e.target.checked ? 'block' : 'none';
+});
 // ОТПРАВКА НОВОГО ЗАНЯТИЯ (одноразовое или еженедельное)
 document.getElementById('create-lesson-btn').addEventListener('click', async () => {
 const student_id = document.getElementById('lesson-student-id').value;
@@ -3120,21 +3324,78 @@ setTimeout(() => {
 }
 
 // Показать/скрыть меню
-function toggleLessonMenu(e, lessonId) {
-    e.stopPropagation();
-    e.preventDefault(); // Добавлено для предотвращения конфликтов
-    document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
-        if (menu.id !== `dropdown-${lessonId}`) menu.classList.remove('show');
-    });
-    const menu = document.getElementById(`dropdown-${lessonId}`);
-    menu.classList.toggle('show');
+let currentLessonId = null; // Храним ID текущего открытого занятия
+
+function openLessonActionSheet(lessonId) {
+    currentLessonId = lessonId;
+
+    const sheet = document.getElementById('lesson-action-sheet');
+    sheet.classList.add('open');
+    
+    // Показываем overlay (тот же, что для модалок)
+    document.getElementById('overlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
+
+function closeLessonActionSheet() {
+    const sheet = document.getElementById('lesson-action-sheet');
+    sheet.classList.remove('open');
+    
+    document.getElementById('overlay').classList.remove('show');
+    document.body.style.overflow = '';
+    
+    currentLessonId = null;
+}
+
+// Обработчики кнопок в окошке
+document.getElementById('action-share').addEventListener('click', () => {
+    if (!currentLessonId) return;
+    const lesson = appData.schedule.find(l => l.id === currentLessonId);
+    if (!lesson) return;
+
+    // Пример текста для шаринга
+    const text = `${lesson.name || 'Занятие'} — ${lesson.date.replace(/-/g, '.')} с ${lesson.begin} до ${lesson.end}${lesson.notes ? '\nЗаметка: ' + lesson.notes : ''}`;
+    
+    if (navigator.share) {
+        navigator.share({ text });
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Скопировано в буфер обмена');
+        });
+    }
+    
+    closeLessonActionSheet();
+});
+
+document.getElementById('action-edit').addEventListener('click', () => {
+    if (currentLessonId) editLesson(currentLessonId);
+    closeLessonActionSheet();
+});
+
+document.getElementById('action-delete').addEventListener('click', () => {
+    if (currentLessonId) deleteLesson(currentLessonId);
+    closeLessonActionSheet();
+});
+
+document.getElementById('action-cancel').addEventListener('click', closeLessonActionSheet);
+
+// Закрытие по overlay
+document.getElementById('overlay').addEventListener('click', () => {
+    if (document.getElementById('lesson-action-sheet').classList.contains('open')) {
+        closeLessonActionSheet();
+    }
+});
 
 // Закрывать меню при клике вне
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.lesson-actions')) {
         document.querySelectorAll('.lesson-dropdown.show').forEach(menu => {
             menu.classList.remove('show');
+            if (menu.classList.contains('show')) {
+                menu.style.zIndex = '1000';  // Высокий z-index, чтобы меню было сверху всего
+            } else {
+                menu.style.zIndex = '';  // Сбрасываем, когда скрыто
+            }
         });
     }
 });
@@ -3173,7 +3434,7 @@ async function deleteLesson(id) {
 if (!confirm("Удалить это занятие?")) return;
 
 try {
-    const res = await fetch(`${API}/lessons/${id}/`, { method: 'DELETE' });
+    const res = await apiClient(`/lessons/${id}/`, { method: 'DELETE' });
     if (res.ok) {
         loadData();  // Обновляем данные
         loadSchedule();  // Перерендерим расписание
@@ -3253,9 +3514,12 @@ const payload = {
 };
 
 try {
-    const response = await fetch(`${API}/students/update/${id}`, {
-        method: "PUT",
-        headers: {"Content-Type": "application/json"},
+    
+    const response = await apiClient( `/students/update/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload)
     });
 
@@ -3286,7 +3550,7 @@ if (!confirm("Вы уверены, что хотите удалить этого
 }
 
 try {
-    const response = await fetch(`${API}/students/${id}/`, {  // ← предположим, что эндпоинт для DELETE — /students/{id}/ (как в deleteLesson)
+    const response = await apiClient(`/students/${id}`, {  // ← предположим, что эндпоинт для DELETE — /students/{id}/ (как в deleteLesson)
         method: "DELETE"
     });
 
@@ -3296,7 +3560,8 @@ try {
 
     showToast("Ученик удалён");
     sidebar.classList.remove("open");  // Закрываем сайдбар
-    await loadData();  // Обновляем список учеников и дашборд
+    loadData();  // Обновляем список учеников и дашборд
+    loadSchedule();
 } catch (err) {
     alert("Ошибка удаления: " + err.message);
 }
